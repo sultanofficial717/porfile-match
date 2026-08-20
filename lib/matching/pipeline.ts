@@ -17,7 +17,7 @@ export interface MatchStudentOpportunityOptions {
 export async function matchStudentAndOpportunity(
   options: MatchStudentOpportunityOptions
 ): Promise<MatchScoreResult & { opportunity: any; student: any }> {
-  const { studentProfileId, opportunityId, providerName = "gemini", modelName } = options;
+  const { studentProfileId, opportunityId, providerName = "ollama", modelName } = options;
 
   // 1. Fetch full student profile
   const student = await prisma.studentProfile.findUnique({
@@ -32,6 +32,7 @@ export async function matchStudentAndOpportunity(
       projects: true,
       communityWork: true,
       achievements: true,
+      leaderships: true,
       languages: true,
     },
   });
@@ -73,7 +74,7 @@ export async function matchStudentAndOpportunity(
 
   const threshold = scoringConfig?.notificationThreshold ?? DEFAULT_NOTIFICATION_THRESHOLD;
 
-  // 4. Compute Semantic Similarity
+  // 4. Compute Semantic Similarity using Ollama
   const semanticResult = await computeSemanticSimilarity(
     student as any,
     opportunity as any,
@@ -135,7 +136,7 @@ export async function matchStudentAndOpportunity(
       });
 
       // 7. Check if Threshold Reached & Create Notification Queue Item
-      if (matchResult.thresholdReached) {
+      if (matchResult.thresholdReached && opportunity.verificationStatus === "Verified") {
         const strongHighlights = matchResult.explanation.strongMatches.map((m) => `✓ ${m}`).join("\n");
         const emailBody = `
 🎯 New Opportunity Match: ${opportunity.title} at ${opportunity.company}
@@ -194,7 +195,7 @@ Log in to your dashboard to view the opportunity details and apply.
  */
 export async function matchStudentWithAllOpportunities(
   studentProfileId: string,
-  providerName: string = "gemini"
+  providerName: string = "ollama"
 ) {
   const opportunities = await prisma.opportunity.findMany({
     where: { verificationStatus: "Verified" },
@@ -228,7 +229,7 @@ export async function matchStudentWithAllOpportunities(
  */
 export async function matchOpportunityWithAllStudents(
   opportunityId: string,
-  providerName: string = "gemini"
+  providerName: string = "ollama"
 ) {
   const students = await prisma.studentProfile.findMany({
     where: { allowRecruiterView: true },
@@ -238,7 +239,12 @@ export async function matchOpportunityWithAllStudents(
       experiences: true,
       skills: true,
       certifications: true,
+      courses: true,
       projects: true,
+      communityWork: true,
+      achievements: true,
+      leaderships: true,
+      languages: true,
     },
   });
 
@@ -259,3 +265,4 @@ export async function matchOpportunityWithAllStudents(
 
   return results.sort((a, b) => b.overallScore - a.overallScore);
 }
+

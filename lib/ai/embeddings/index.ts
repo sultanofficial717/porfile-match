@@ -1,53 +1,29 @@
-import { GeminiEmbeddingProvider } from "./gemini";
-import { QwenEmbeddingProvider } from "./qwen";
-import { OllamaEmbeddingProvider } from "./ollama";
-import { MockEmbeddingProvider } from "./mock";
+import { OllamaEmbeddingProvider, defaultOllamaProvider, OllamaHealthStatus } from "./ollama";
 import { IEmbeddingProvider, EmbeddingModelInfo, EmbeddingResult } from "./types";
 
 export * from "./types";
-export * from "./gemini";
-export * from "./qwen";
 export * from "./ollama";
-export * from "./mock";
 
 export function getEmbeddingProvider(
-  provider: string = "gemini",
+  provider: string = "ollama",
   options?: {
     modelName?: string;
-    apiKey?: string;
     baseUrl?: string;
   }
 ): IEmbeddingProvider {
-  const normalized = provider.toLowerCase().trim();
+  return new OllamaEmbeddingProvider(options?.modelName, options?.baseUrl);
+}
 
-  switch (normalized) {
-    case "gemini":
-      return new GeminiEmbeddingProvider(options?.modelName, options?.apiKey);
-    case "qwen":
-      return new QwenEmbeddingProvider(options?.modelName, options?.apiKey, options?.baseUrl);
-    case "ollama":
-      return new OllamaEmbeddingProvider(options?.modelName, options?.baseUrl);
-    case "mock":
-    default:
-      return new MockEmbeddingProvider();
-  }
+export async function getOllamaStatus(): Promise<OllamaHealthStatus> {
+  return defaultOllamaProvider.checkHealth();
 }
 
 export async function getAllProvidersInfo(): Promise<EmbeddingModelInfo[]> {
-  const gemini = new GeminiEmbeddingProvider();
-  const qwen = new QwenEmbeddingProvider();
-  const ollama = new OllamaEmbeddingProvider();
-  const mock = new MockEmbeddingProvider();
-
-  const [geminiInfo, qwenInfo, ollamaInfo, mockInfo] = await Promise.all([
-    gemini.getModelInfo(),
-    qwen.getModelInfo(),
-    ollama.getModelInfo(),
-    mock.getModelInfo(),
-  ]);
-
-  return [geminiInfo, qwenInfo, ollamaInfo, mockInfo];
+  const modelInfo = await defaultOllamaProvider.getModelInfo();
+  return [modelInfo];
 }
+
+
 
 /**
  * Robust cosine similarity calculation between two vectors of matching dimension.

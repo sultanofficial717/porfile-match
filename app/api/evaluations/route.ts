@@ -33,10 +33,11 @@ export async function POST(request: NextRequest) {
     const {
       studentId,
       opportunityId,
-      modelProvider = "gemini",
-      modelName = "text-embedding-004",
+      modelProvider = "ollama",
+      modelName = process.env.OLLAMA_EMBEDDING_MODEL || "nomic-embed-text",
       score,
       recruiterDecision, // "STRONG_MATCH" | "GOOD_MATCH" | "WEAK_MATCH" | "WRONG_MATCH"
+      feedbackReason,
       feedbackText,
       createdById,
     } = body;
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
         modelName,
         score: parseFloat(score) || 0,
         recruiterDecision,
+        feedbackReason: feedbackReason || null,
         feedbackText: feedbackText || null,
         createdById: targetUserId!,
       },
@@ -80,3 +82,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+

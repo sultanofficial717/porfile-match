@@ -96,10 +96,10 @@ export default function LandingPage() {
             <span>Under The Hood</span>
           </div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Hybrid Matching: Structured Rules + Semantic AI
+            Hybrid Matching: Hard Eligibility + Ollama Semantic AI
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Never equate pure cosine similarity with candidate qualification. We enforce strict two-stage filtering.
+            Never equate pure cosine similarity with candidate qualification. We enforce strict multi-stage verification.
           </p>
         </div>
 
@@ -117,22 +117,22 @@ export default function LandingPage() {
                 Stage 1 — Hard Eligibility
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Mandatory criteria (GPA, Degree, Experience, Required Skills) are evaluated first. If any fails, candidate is marked NOT ELIGIBLE.
+                Mandatory criteria (GPA, Degree, Experience, Required Skills, Work Auth) are evaluated first. If any fails, candidate is marked NOT ELIGIBLE.
               </p>
             </div>
             <div className="space-y-1.5 p-3 rounded-xl bg-white dark:bg-slate-900 border text-xs font-medium">
               <div className="flex items-center justify-between text-emerald-600 font-bold">
-                <span>Ali Rehman (GPA 3.62 &gt;= 3.0)</span>
+                <span>Eligible Candidate (Meets all rules)</span>
                 <CheckCircle2 className="w-4 h-4" />
               </div>
               <div className="flex items-center justify-between text-rose-600 font-bold">
-                <span>Bilal (GPA 2.55 &lt; 3.0)</span>
-                <span className="text-[10px] px-1.5 py-0.5 bg-rose-100 rounded">NOT ELIGIBLE</span>
+                <span>Missing Mandatory Skill or GPA</span>
+                <span className="text-[10px] px-1.5 py-0.5 bg-rose-100 dark:bg-rose-950 rounded">NOT ELIGIBLE</span>
               </div>
             </div>
           </div>
 
-          {/* Step 2: Normalized Semantic Embeddings */}
+          {/* Step 2: Normalized Ollama Embeddings */}
           <div className="p-5 rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 space-y-4">
             <div className="flex items-center justify-between">
               <span className="w-7 h-7 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
@@ -142,24 +142,24 @@ export default function LandingPage() {
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Stage 2 — Multi-Model Embeddings
+                Stage 2 — Ollama Embeddings
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Normalized matching documents are embedded server-side using interchangeable providers.
+                Normalized matching documents are embedded server-side using your local Ollama embedding model.
               </p>
             </div>
             <div className="space-y-1.5 p-3 rounded-xl bg-white dark:bg-slate-900 border text-xs">
               <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
-                <span className="font-semibold">Qwen Embedding:</span>
-                <span className="font-mono font-bold text-blue-600">94.2%</span>
+                <span className="font-semibold">Ollama Provider:</span>
+                <span className="font-mono font-bold text-blue-600">Localhost</span>
               </div>
               <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
-                <span className="font-semibold">Gemini Embedding:</span>
-                <span className="font-mono font-bold text-emerald-600">92.8%</span>
+                <span className="font-semibold">Embedding Model:</span>
+                <span className="font-mono font-bold text-purple-600">Configured via ENV</span>
               </div>
               <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
-                <span className="font-semibold">Ollama Local:</span>
-                <span className="font-mono font-bold text-purple-600">93.1%</span>
+                <span className="font-semibold">Vector Storage:</span>
+                <span className="font-mono font-bold text-emerald-600">Normalized SQLite</span>
               </div>
             </div>
           </div>
@@ -174,7 +174,7 @@ export default function LandingPage() {
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Stage 3 — Weighted Score & Alerts
+                Stage 3 — Weighted Score & Dashboard Notifications
               </h3>
               <p className="text-xs text-slate-500 mt-1">
                 Weighted combination of Semantic, Skill, Experience, and Education scores triggers threshold notifications (e.g. &gt;= 92%).
@@ -182,55 +182,55 @@ export default function LandingPage() {
             </div>
             <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border flex items-center justify-between">
               <div className="space-y-0.5">
-                <p className="text-[10px] text-slate-400 font-bold uppercase">Overall Match</p>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">94% — Strong Candidate</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase">Match Threshold</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">Configurable 90% - 95%</p>
               </div>
               <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
-                <Mail className="w-3 h-3" /> Queue Alert
+                <Mail className="w-3 h-3" /> Dashboard Feed
               </span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Model Comparison Highlights */}
+      {/* Role Workflows */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="p-6 rounded-3xl border bg-white dark:bg-slate-900 space-y-3">
           <div className="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-blue-600 font-bold">
-            <Cpu className="w-5 h-5" />
+            <UserCheck className="w-5 h-5" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Qwen Embeddings</h3>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">1. Students</h3>
           <p className="text-xs text-slate-500">
-            High-dimensional text embeddings (e.g. text-embedding-v3, 1024 dims) configured via DashScope / OpenAI endpoint.
+            Create full structured profiles or import CVs with interactive review. View real match breakdowns and notifications.
           </p>
           <div className="pt-2 text-xs font-semibold text-blue-600 flex items-center gap-1">
-            <span>Configurable Base URL & Key</span>
+            <Link href="/dashboard" className="hover:underline">Open Student Dashboard →</Link>
           </div>
         </div>
 
         <div className="p-6 rounded-3xl border bg-white dark:bg-slate-900 space-y-3">
           <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 font-bold">
-            <Sparkles className="w-5 h-5" />
+            <Building2 className="w-5 h-5" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Gemini Embeddings</h3>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">2. Recruiters</h3>
           <p className="text-xs text-slate-500">
-            Google Generative AI embeddings (text-embedding-004, 768 dims) with fast server-side batch inference.
+            Publish real opportunities with structured degree, GPA, experience, and skill criteria. Review and evaluate matched candidates.
           </p>
           <div className="pt-2 text-xs font-semibold text-emerald-600 flex items-center gap-1">
-            <span>Secure Server-Side API</span>
+            <Link href="/recruiter" className="hover:underline">Open Recruiter Hub →</Link>
           </div>
         </div>
 
         <div className="p-6 rounded-3xl border bg-white dark:bg-slate-900 space-y-3">
           <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950 flex items-center justify-center text-purple-600 font-bold">
-            <Zap className="w-5 h-5" />
+            <ShieldCheck className="w-5 h-5" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Local Ollama</h3>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">3. Admin</h3>
           <p className="text-xs text-slate-500">
-            Zero external data transfer using local Ollama instance (nomic-embed-text, all-minilm, bge-m3).
+            Verify pending recruiter opportunities, tune match weights & notification thresholds, and monitor Ollama health.
           </p>
           <div className="pt-2 text-xs font-semibold text-purple-600 flex items-center gap-1">
-            <span>http://localhost:11434</span>
+            <Link href="/admin" className="hover:underline">Open Admin Panel →</Link>
           </div>
         </div>
       </section>

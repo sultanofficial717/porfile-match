@@ -1,4 +1,5 @@
-import { getEmbeddingProvider, cosineSimilarityToPercentage, IEmbeddingProvider, EmbeddingResult } from "../ai/embeddings";
+import { prisma } from "../db/prisma";
+import { getEmbeddingProvider, cosineSimilarityToPercentage, OllamaEmbeddingProvider, EmbeddingResult } from "../ai/embeddings";
 import { buildStudentMatchingDocument, buildOpportunityMatchingDocument, StudentProfileForDoc, OpportunityForDoc } from "./document";
 
 export interface SemanticMatchResult {
@@ -13,68 +14,198 @@ export interface SemanticMatchResult {
 }
 
 /**
- * Computes semantic similarity between a student profile and an opportunity using specified embedding provider.
+ * Gets or computes and stores Ollama embedding vector for a Student Profile.
+ */
+export async function getOrComputeStudentEmbedding(
+  studentProfile: StudentProfileForDoc & { id: string },
+  forceRegenerate: boolean = false
+): Promise<{ vector: number[]; modelName: string; dimension: number }> {
+  const provider = new OllamaEmbeddingProvider();
+  const modelName = provider.getModel();
+  const documentText = buildStudentMatchingDocument(studentProfile);
+
+  if (!forceRegenerate) {
+    const existing = await prisma.embedding.findUnique({
+      where: {
+        entityType_entityId_provider_modelName: {
+          entityType: "STUDENT",
+          entityId: studentProfile.id,
+          provider: "ollama",
+          modelName,
+        },
+      },
+    });
+
+    if (existing && existing.embeddingVector) {
+      try {
+        const parsed = JSON.parse(existing.embeddingVector);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return { vector: parsed, modelName, dimension: existing.dimension };
+        }
+      } catch (e) {
+        // recompute if corrupted
+      }
+    }
+  }
+
+  // Embed with Ollama server-side
+  const embedRes = await provider.embedText(documentText);
+
+  // Store vector in DB
+  await prisma.embedding.upsert({
+    where: {
+      entityType_entityId_provider_modelName: {
+        entityType: "STUDENT",
+        entityId: studentProfile.id,
+        provider: "ollama",
+        modelName,
+      },
+    },
+    create: {
+      entityType: "STUDENT",
+      entityId: studentProfile.id,
+      provider: "ollama",
+      modelName,
+      dimension: embedRes.dimension,
+      version: "v1",
+      embeddingVector: JSON.stringify(embedRes.embedding),
+      documentText,
+    },
+    update: {
+      dimension: embedRes.dimension,
+      embeddingVector: JSON.stringify(embedRes.embedding),
+      documentText,
+      updatedAt: new Date(),
+    },
+  });
+
+  return { vector: embedRes.embedding, modelName, dimension: embedRes.dimension };
+}
+
+/**
+ * Gets or computes and stores Ollama embedding vector for an Opportunity.
+ */
+export async function getOrComputeOpportunityEmbedding(
+  opportunity: OpportunityForDoc & { id: string },
+  forceRegenerate: boolean = false
+): Promise<{ vector: number[]; modelName: string; dimension: number }> {
+  const provider = new OllamaEmbeddingProvider();
+  const modelName = provider.getModel();
+  const documentText = buildOpportunityMatchingDocument(opportunity);
+
+  if (!forceRegenerate) {
+    const existing = await prisma.embedding.findUnique({
+      where: {
+        entityType_entityId_provider_modelName: {
+          entityType: "OPPORTUNITY",
+          entityId: opportunity.id,
+          provider: "ollama",
+          modelName,
+        },
+      },
+    });
+
+    if (existing && existing.embeddingVector) {
+      try {
+        const parsed = JSON.parse(existing.embeddingVector);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return { vector: parsed, modelName, dimension: existing.dimension };
+        }
+      } catch (e) {
+        // recompute
+      }
+    }
+  }
+
+  // Embed with Ollama server-side
+  const embedRes = await provider.embedText(documentText);
+
+  // Store vector in DB
+  await prisma.embedding.upsert({
+    where: {
+      entityType_entityId_provider_modelName: {
+        entityType: "OPPORTUNITY",
+        entityId: opportunity.id,
+        provider: "ollama",
+        modelName,
+      },
+    },
+    create: {
+      entityType: "OPPORTUNITY",
+      entityId: opportunity.id,
+      provider: "ollama",
+      modelName,
+      dimension: embedRes.dimension,
+      version: "v1",
+      embeddingVector: JSON.stringify(embedRes.embedding),
+      documentText,
+    },
+    update: {
+      dimension: embedRes.dimension,
+      embeddingVector: JSON.stringify(embedRes.embedding),
+      documentText,
+      updatedAt: new Date(),
+    },
+  });
+
+  return { vector: embedRes.embedding, modelName, dimension: embedRes.dimension };
+}
+
+/**
+ * Computes semantic similarity between a student profile and an opportunity using Ollama embeddings only.
+ * If Ollama is unavailable, throws an explicit error (NO fake mock fallback vectors).
  */
 export async function computeSemanticSimilarity(
-  studentProfile: StudentProfileForDoc,
-  opportunity: OpportunityForDoc,
-  providerName: string = "gemini",
+  studentProfile: StudentProfileForDoc & { id?: string },
+  opportunity: OpportunityForDoc & { id?: string },
+  providerName: string = "ollama",
   options?: {
     modelName?: string;
-    apiKey?: string;
     baseUrl?: string;
   }
 ): Promise<SemanticMatchResult> {
-  let provider = getEmbeddingProvider(providerName, options);
+  const provider = new OllamaEmbeddingProvider(options?.modelName, options?.baseUrl);
+  const startTime = performance.now();
 
-  const studentDoc = buildStudentMatchingDocument(studentProfile);
-  const opportunityDoc = buildOpportunityMatchingDocument(opportunity);
+  let studentVec: number[];
+  let oppVec: number[];
+  let modelName = provider.getModel();
+  let dimension = 768;
 
-  let studentRes: EmbeddingResult;
-  let oppRes: EmbeddingResult;
-
-  try {
-    const startTime = performance.now();
-    [studentRes, oppRes] = await Promise.all([
-      provider.embedText(studentDoc),
-      provider.embedText(opportunityDoc),
-    ]);
-    const totalLatency = Math.round(performance.now() - startTime);
-
-    const score = cosineSimilarityToPercentage(studentRes.embedding, oppRes.embedding);
-
-    return {
-      similarityScore: score,
-      provider: studentRes.provider,
-      modelName: studentRes.modelName,
-      dimension: studentRes.dimension,
-      latencyMs: totalLatency,
-      isMock: studentRes.isMock,
-      studentEmbedding: studentRes.embedding,
-      opportunityEmbedding: oppRes.embedding,
-    };
-  } catch (error: any) {
-    // If external provider fails (e.g. invalid key or connection offline), fall back to Mock provider with warning
-    console.warn(
-      `Embedding provider '${providerName}' failed: ${error?.message}. Using fallback deterministic semantic provider.`
-    );
-    provider = getEmbeddingProvider("mock");
-    const [mockStudent, mockOpp] = await Promise.all([
-      provider.embedText(studentDoc),
-      provider.embedText(opportunityDoc),
-    ]);
-
-    const score = cosineSimilarityToPercentage(mockStudent.embedding, mockOpp.embedding);
-
-    return {
-      similarityScore: score,
-      provider: `${providerName} (Mock Fallback)`,
-      modelName: mockStudent.modelName,
-      dimension: mockStudent.dimension,
-      latencyMs: mockStudent.latencyMs + mockOpp.latencyMs,
-      isMock: true,
-      studentEmbedding: mockStudent.embedding,
-      opportunityEmbedding: mockOpp.embedding,
-    };
+  // Use stored vector caching if id is available
+  if (studentProfile.id) {
+    const s = await getOrComputeStudentEmbedding(studentProfile as any);
+    studentVec = s.vector;
+    modelName = s.modelName;
+    dimension = s.dimension;
+  } else {
+    const studentDoc = buildStudentMatchingDocument(studentProfile);
+    const res = await provider.embedText(studentDoc);
+    studentVec = res.embedding;
+    dimension = res.dimension;
   }
+
+  if (opportunity.id) {
+    const o = await getOrComputeOpportunityEmbedding(opportunity as any);
+    oppVec = o.vector;
+  } else {
+    const oppDoc = buildOpportunityMatchingDocument(opportunity);
+    const res = await provider.embedText(oppDoc);
+    oppVec = res.embedding;
+  }
+
+  const totalLatency = Math.round(performance.now() - startTime);
+  const score = cosineSimilarityToPercentage(studentVec, oppVec);
+
+  return {
+    similarityScore: score,
+    provider: "ollama",
+    modelName,
+    dimension,
+    latencyMs: totalLatency,
+    isMock: false,
+    studentEmbedding: studentVec,
+    opportunityEmbedding: oppVec,
+  };
 }
+

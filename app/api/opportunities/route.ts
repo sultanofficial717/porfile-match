@@ -65,14 +65,22 @@ export async function POST(request: NextRequest) {
       type,
       company,
       location,
+      country = "Pakistan",
       workplaceType,
       minGpa,
+      gpaScale = 4.0,
+      isGpaMandatory = true,
       requiredDegree,
+      educationDegreePreferred,
+      fieldOfStudy,
       minExperienceYears,
+      preferredExperienceYears,
       requiredSkills,
       preferredSkills,
       certificationsRequired,
-      workAuthorization,
+      languagesRequired,
+      graduationYear,
+      workAuthorization = "Pakistan",
       deadline,
       fullDescription,
       responsibilities,
@@ -84,7 +92,7 @@ export async function POST(request: NextRequest) {
       recruiterId,
       skills,
       requirements,
-      verificationStatus = "Verified", // default verified for demo ease, can be pending
+      verificationStatus = "Pending", // Default is Pending verification per requirements
     } = body;
 
     if (!title || !company || !fullDescription) {
@@ -112,13 +120,21 @@ export async function POST(request: NextRequest) {
         type: type || "Job",
         company,
         location: location || "Islamabad",
+        country,
         workplaceType: workplaceType || "Hybrid",
-        minGpa: minGpa ? parseFloat(minGpa) : null,
+        minGpa: minGpa !== undefined && minGpa !== null && minGpa !== "" ? parseFloat(minGpa) : null,
+        gpaScale: gpaScale ? parseFloat(gpaScale) : 4.0,
+        isGpaMandatory: Boolean(isGpaMandatory),
         requiredDegree: requiredDegree || null,
-        minExperienceYears: minExperienceYears !== undefined ? parseFloat(minExperienceYears) : 0,
+        educationDegreePreferred: educationDegreePreferred || null,
+        fieldOfStudy: fieldOfStudy || null,
+        minExperienceYears: minExperienceYears !== undefined && minExperienceYears !== "" ? parseFloat(minExperienceYears) : 0,
+        preferredExperienceYears: preferredExperienceYears !== undefined && preferredExperienceYears !== "" ? parseFloat(preferredExperienceYears) : null,
         requiredSkills: requiredSkills || "",
         preferredSkills: preferredSkills || null,
         certificationsRequired: certificationsRequired || null,
+        languagesRequired: languagesRequired || null,
+        graduationYear: graduationYear ? parseInt(graduationYear) : null,
         workAuthorization: workAuthorization || "Pakistan",
         deadline: deadline || null,
         fullDescription,
@@ -143,6 +159,7 @@ export async function POST(request: NextRequest) {
               skillName: sk.skillName.trim(),
               isMandatory: sk.isMandatory !== undefined ? Boolean(sk.isMandatory) : true,
               requiredLevel: sk.requiredLevel || "Intermediate",
+              minExperience: sk.minExperience ? parseFloat(sk.minExperience) : 0,
             },
           });
         }
@@ -157,6 +174,7 @@ export async function POST(request: NextRequest) {
             skillName: sn,
             isMandatory: true,
             requiredLevel: "Intermediate",
+            minExperience: 0,
           },
         });
       }
@@ -193,3 +211,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+

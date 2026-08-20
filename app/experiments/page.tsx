@@ -26,7 +26,7 @@ export default function ExperimentsPage() {
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [selectedOppId, setSelectedOppId] = useState("");
-  const [providers, setProviders] = useState<string[]>(["qwen", "gemini", "ollama"]);
+  const [providers, setProviders] = useState<string[]>(["ollama"]);
   const [isRunning, setIsRunning] = useState(false);
   const [currentResult, setCurrentResult] = useState<any>(null);
   const [pastExperiments, setPastExperiments] = useState<any[]>([]);
@@ -250,9 +250,7 @@ export default function ExperimentsPage() {
           </label>
           <div className="flex flex-wrap gap-3">
             {[
-              { id: "qwen", label: "Qwen (text-embedding-v3)", icon: Cpu },
-              { id: "gemini", label: "Gemini (text-embedding-004)", icon: Sparkles },
-              { id: "ollama", label: "Ollama Local (nomic-embed-text)", icon: Zap },
+              { id: "ollama", label: "Ollama Local Engine (nomic-embed-text)", icon: Zap },
             ].map((m) => {
               const Icon = m.icon;
               const isChecked = providers.includes(m.id);

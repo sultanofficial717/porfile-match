@@ -1,28 +1,35 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { getOllamaStatus } from "@/lib/ai/embeddings";
 
 export async function GET() {
   try {
     const [
       totalStudents,
+      totalRecruiters,
       totalOpportunities,
       verifiedOpportunities,
       pendingOpportunities,
       totalMatches,
-      highQualityMatches,
+      matchesAboveThreshold,
+      notificationsGenerated,
       pendingNotifications,
+      recruiterFeedbackCount,
       allMatches,
       opportunitiesGrouped,
-      skillsGrouped,
-      recentExperiments,
+      recentFeedbacks,
+      ollamaStatus,
     ] = await Promise.all([
       prisma.studentProfile.count(),
+      prisma.recruiterProfile.count(),
       prisma.opportunity.count(),
       prisma.opportunity.count({ where: { verificationStatus: "Verified" } }),
       prisma.opportunity.count({ where: { verificationStatus: "Pending" } }),
       prisma.match.count(),
-      prisma.match.count({ where: { overallScore: { gte: 90.0 } } }),
+      prisma.match.count({ where: { overallScore: { gte: 92.0 } } }),
+      prisma.notification.count(),
       prisma.notification.count({ where: { status: "PENDING" } }),
+      prisma.modelEvaluationFeedback.count(),
       prisma.match.findMany({
         select: {
           overallScore: true,
@@ -35,23 +42,30 @@ export async function GET() {
         by: ["type"],
         _count: { id: true },
       }),
-      prisma.studentSkill.groupBy({
-        by: ["skillName"],
-        _count: { id: true },
-        orderBy: { _count: { id: "desc" } },
-        take: 8,
-      }),
-      prisma.experiment.findMany({
-        take: 5,
+      prisma.modelEvaluationFeedback.findMany({
+        take: 10,
         orderBy: { createdAt: "desc" },
-        include: { results: true },
+        include: {
+          studentProfile: { include: { user: true } },
+          opportunity: true,
+          createdBy: true,
+        },
       }),
+      getOllamaStatus().catch((err) => ({
+        isConnected: false,
+        model: process.env.OLLAMA_EMBEDDING_MODEL || "nomic-embed-text",
+        isModelAvailable: false,
+        availableModels: [],
+        statusText: "DISCONNECTED" as const,
+        baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
+        error: err.message,
+      })),
     ]);
 
     const avgScore =
       allMatches.length > 0
-        ? (allMatches.reduce((acc, m) => acc + m.overallScore, 0) / allMatches.length).toFixed(1)
-        : "88.4";
+        ? Number((allMatches.reduce((acc, m) => acc + m.overallScore, 0) / allMatches.length).toFixed(1))
+        : 0;
 
     // Score distribution buckets: <60, 60-75, 75-85, 85-92, 92-100
     const distribution = [
@@ -67,26 +81,26 @@ export async function GET() {
       count: g._count.id,
     }));
 
-    const skillData = skillsGrouped.map((s) => ({
-      skill: s.skillName,
-      students: s._count.id,
-    }));
-
     return NextResponse.json({
       totalStudents,
+      totalRecruiters,
       totalOpportunities,
       verifiedOpportunities,
       pendingOpportunities,
       totalMatches,
-      highQualityMatches,
+      matchesAboveThreshold,
+      highQualityMatches: matchesAboveThreshold,
+      notificationsGenerated,
       pendingNotifications,
-      avgScore: parseFloat(avgScore),
+      recruiterFeedbackCount,
+      recentFeedbacks,
+      avgScore,
       distribution,
       categories: categoryData,
-      topSkills: skillData,
-      recentExperiments,
+      ollamaStatus,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+

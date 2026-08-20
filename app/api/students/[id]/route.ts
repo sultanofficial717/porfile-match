@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { calculateProfileCompleteness } from "@/lib/matching/scoring";
+import { getOrComputeStudentEmbedding } from "@/lib/matching/semantic";
 
 export async function GET(
   request: NextRequest,
@@ -20,6 +21,7 @@ export async function GET(
         courses: true,
         communityWork: true,
         achievements: true,
+        leaderships: true,
         languages: true,
       },
     });
@@ -44,6 +46,9 @@ export async function PUT(
 
     const {
       name,
+      avatar,
+      phone,
+      country = "Pakistan",
       bio,
       location,
       gpa,
@@ -51,17 +56,20 @@ export async function PUT(
       degree,
       graduationYear,
       yearsExperience,
-      workAuthorization,
+      workAuthorization = "Pakistan",
       portfolioUrl,
       githubUrl,
       linkedinUrl,
+      otherUrl,
       skills,
       educations,
       experiences,
       projects,
       certifications,
+      courses,
       communityWork,
       achievements,
+      leaderships,
       languages,
     } = body;
 
@@ -69,26 +77,32 @@ export async function PUT(
     const updatedProfile = await prisma.studentProfile.update({
       where: { id },
       data: {
-        bio,
-        location,
-        gpa: gpa !== undefined ? parseFloat(gpa) || null : undefined,
-        university,
-        degree,
-        graduationYear: graduationYear ? parseInt(graduationYear, 10) : undefined,
-        yearsExperience: yearsExperience !== undefined ? parseFloat(yearsExperience) || 0 : undefined,
-        workAuthorization,
-        portfolioUrl,
-        githubUrl,
-        linkedinUrl,
+        phone: phone || null,
+        country: country || "Pakistan",
+        bio: bio || null,
+        location: location || null,
+        gpa: gpa !== undefined && gpa !== "" && gpa !== null ? parseFloat(gpa) : null,
+        university: university || null,
+        degree: degree || null,
+        graduationYear: graduationYear ? parseInt(graduationYear, 10) : null,
+        yearsExperience: yearsExperience !== undefined && yearsExperience !== "" ? parseFloat(yearsExperience) || 0 : 0,
+        workAuthorization: workAuthorization || "Pakistan",
+        portfolioUrl: portfolioUrl || null,
+        githubUrl: githubUrl || null,
+        linkedinUrl: linkedinUrl || null,
+        otherUrl: otherUrl || null,
       },
       include: { user: true },
     });
 
-    // Update User's Name if provided
-    if (name && updatedProfile.userId) {
+    // Update User Name / Avatar if provided
+    if ((name || avatar) && updatedProfile.userId) {
       await prisma.user.update({
         where: { id: updatedProfile.userId },
-        data: { name },
+        data: {
+          ...(name ? { name } : {}),
+          ...(avatar ? { avatar } : {}),
+        },
       });
     }
 
@@ -101,6 +115,7 @@ export async function PUT(
             data: {
               studentProfileId: id,
               skillName: sk.skillName.trim(),
+              category: sk.category || "Technical",
               level: sk.level || "Intermediate",
               yearsExperience: parseFloat(sk.yearsExperience) || 1.0,
             },
@@ -120,9 +135,12 @@ export async function PUT(
               institution: edu.institution,
               degree: edu.degree,
               fieldOfStudy: edu.fieldOfStudy || "",
-              gpa: edu.gpa ? parseFloat(edu.gpa) : null,
+              gpa: edu.gpa !== undefined && edu.gpa !== "" && edu.gpa !== null ? parseFloat(edu.gpa) : null,
+              gpaScale: edu.gpaScale ? parseFloat(edu.gpaScale) : 4.0,
               startYear: parseInt(edu.startYear, 10) || 2021,
               endYear: edu.endYear ? parseInt(edu.endYear, 10) : null,
+              startDate: edu.startDate || null,
+              endDate: edu.endDate || null,
               isCurrent: Boolean(edu.isCurrent),
               courses: edu.courses || null,
               honors: edu.honors || null,
@@ -148,6 +166,7 @@ export async function PUT(
               endDate: exp.endDate || null,
               isCurrent: Boolean(exp.isCurrent),
               description: exp.description || null,
+              skillsUsed: exp.skillsUsed || null,
               years: parseFloat(exp.years) || 0,
               months: parseInt(exp.months, 10) || 0,
             },
@@ -166,7 +185,12 @@ export async function PUT(
               studentProfileId: id,
               title: p.title,
               description: p.description || "",
+              role: p.role || null,
+              url: p.url || null,
+              githubUrl: p.githubUrl || null,
               technologies: p.technologies || "",
+              startDate: p.startDate || null,
+              endDate: p.endDate || null,
             },
           });
         }
@@ -183,13 +207,36 @@ export async function PUT(
               studentProfileId: id,
               name: c.name,
               issuer: c.issuer || "Online Platform",
+              issueDate: c.issueDate || null,
+              expiryDate: c.expiryDate || null,
+              credentialId: c.credentialId || null,
+              credentialUrl: c.credentialUrl || null,
             },
           });
         }
       }
     }
 
-    // 7. Sync Community Work
+    // 7. Sync Courses if provided
+    if (Array.isArray(courses)) {
+      await prisma.course.deleteMany({ where: { studentProfileId: id } });
+      for (const cs of courses) {
+        if (cs.title) {
+          await prisma.course.create({
+            data: {
+              studentProfileId: id,
+              title: cs.title,
+              institution: cs.institution || "Online",
+              completionDate: cs.completionDate || null,
+              description: cs.description || null,
+              skillsLearned: cs.skillsLearned || null,
+            },
+          });
+        }
+      }
+    }
+
+    // 8. Sync Community Work
     if (Array.isArray(communityWork)) {
       await prisma.communityWork.deleteMany({ where: { studentProfileId: id } });
       for (const cw of communityWork) {
@@ -199,14 +246,17 @@ export async function PUT(
               studentProfileId: id,
               title: cw.title,
               organization: cw.organization || "",
+              role: cw.role || null,
               description: cw.description || "",
+              startDate: cw.startDate || null,
+              endDate: cw.endDate || null,
             },
           });
         }
       }
     }
 
-    // 8. Sync Achievements
+    // 9. Sync Achievements
     if (Array.isArray(achievements)) {
       await prisma.achievement.deleteMany({ where: { studentProfileId: id } });
       for (const a of achievements) {
@@ -218,13 +268,32 @@ export async function PUT(
               type: a.type || "Award",
               issuer: a.issuer || "",
               date: a.date || "",
+              description: a.description || null,
             },
           });
         }
       }
     }
 
-    // 9. Sync Languages
+    // 10. Sync Leaderships
+    if (Array.isArray(leaderships)) {
+      await prisma.leadership.deleteMany({ where: { studentProfileId: id } });
+      for (const l of leaderships) {
+        if (l.organization && l.position) {
+          await prisma.leadership.create({
+            data: {
+              studentProfileId: id,
+              organization: l.organization,
+              position: l.position,
+              description: l.description || null,
+              duration: l.duration || null,
+            },
+          });
+        }
+      }
+    }
+
+    // 11. Sync Languages
     if (Array.isArray(languages)) {
       await prisma.language.deleteMany({ where: { studentProfileId: id } });
       for (const l of languages) {
@@ -249,8 +318,10 @@ export async function PUT(
         experiences: true,
         projects: true,
         certifications: true,
+        courses: true,
         communityWork: true,
         achievements: true,
+        leaderships: true,
         languages: true,
         user: true,
       },
@@ -266,15 +337,25 @@ export async function PUT(
         experiences: true,
         projects: true,
         certifications: true,
+        courses: true,
         communityWork: true,
         achievements: true,
+        leaderships: true,
         languages: true,
         user: true,
       },
     });
+
+    // Try to update Ollama embedding in the background if Ollama is running
+    try {
+      await getOrComputeStudentEmbedding(finalProfile as any, true);
+    } catch (embErr) {
+      console.warn("Could not generate Ollama embedding for student immediately:", (embErr as any)?.message);
+    }
 
     return NextResponse.json(finalProfile);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+

@@ -29,6 +29,8 @@ model StudentProfile {
   id                  String            @id @default(cuid())
   userId              String            @unique
   user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone               String?
+  country             String?           @default("Pakistan")
   bio                 String?
   location            String?
   gpa                 Float?
@@ -40,6 +42,7 @@ model StudentProfile {
   portfolioUrl        String?
   githubUrl           String?
   linkedinUrl         String?
+  otherUrl            String?
   resumeUrl           String?
   privacyConsent      Boolean           @default(true)
   allowRecruiterView  Boolean           @default(true)
@@ -55,6 +58,7 @@ model StudentProfile {
   projects            Project[]
   communityWork       CommunityWork[]
   achievements        Achievement[]
+  leaderships         Leadership[]
   languages           Language[]
   applications        Application[]
   matches             Match[]
@@ -84,10 +88,13 @@ model Education {
   degree           String
   fieldOfStudy     String
   gpa              Float?
+  gpaScale         Float?         @default(4.0)
   startYear        Int
   endYear          Int?
+  startDate        String?
+  endDate          String?
   isCurrent        Boolean        @default(false)
-  courses          String?        // comma-separated or json string
+  courses          String?        // comma-separated or json string (relevant coursework)
   honors           String?
   createdAt        DateTime       @default(now())
 }
@@ -104,6 +111,7 @@ model Experience {
   endDate          String?        // YYYY-MM
   isCurrent        Boolean        @default(false)
   description      String?
+  skillsUsed       String?
   years            Float          @default(0)
   months           Int            @default(0)
   createdAt        DateTime       @default(now())
@@ -121,6 +129,7 @@ model StudentSkill {
   studentProfileId String
   studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
   skillName        String
+  category         String?        @default("Technical")
   level            String         @default("Intermediate") // Beginner, Intermediate, Advanced, Expert
   yearsExperience  Float          @default(1.0)
   createdAt        DateTime       @default(now())
@@ -148,6 +157,7 @@ model Course {
   title            String
   institution      String
   completionDate   String?
+  description      String?
   skillsLearned    String?
   createdAt        DateTime       @default(now())
 }
@@ -192,6 +202,17 @@ model Achievement {
   createdAt        DateTime       @default(now())
 }
 
+model Leadership {
+  id               String         @id @default(cuid())
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  organization     String
+  position         String
+  description      String?
+  duration         String?
+  createdAt        DateTime       @default(now())
+}
+
 model Language {
   id               String         @id @default(cuid())
   studentProfileId String
@@ -211,13 +232,21 @@ model Opportunity {
   type                    String                   @default("Job") // Job, Internship, Scholarship, Fellowship, Competition, Volunteer, Training
   company                 String
   location                String
+  country                 String?                  @default("Pakistan")
   workplaceType           String                   @default("Hybrid") // Remote, Hybrid, On-site
   minGpa                  Float?
+  gpaScale                Float?                   @default(4.0)
+  isGpaMandatory          Boolean                  @default(true)
   requiredDegree          String?                  // E.g., "Computer Science / Software Engineering / Data Science"
+  educationDegreePreferred String?
+  fieldOfStudy            String?
   minExperienceYears      Float                    @default(0)
+  preferredExperienceYears Float?
   requiredSkills          String                   // JSON string or comma-separated
   preferredSkills         String?                  // JSON string or comma-separated
   certificationsRequired  String?
+  languagesRequired       String?
+  graduationYear          Int?
   workAuthorization       String?                  @default("Pakistan")
   deadline                String?
   fullDescription         String
@@ -227,7 +256,7 @@ model Opportunity {
   salaryOrStipend         String?
   applicationUrl          String?
   contactInfo             String?
-  verificationStatus      String                   @default("Verified") // Pending, Verified, Rejected, Expired
+  verificationStatus      String                   @default("Pending") // Pending, Verified, Rejected, Expired
   verifiedAt              DateTime?
   verifiedBy              String?
   createdAt               DateTime                 @default(now())
@@ -250,6 +279,7 @@ model OpportunitySkill {
   skillName     String
   isMandatory   Boolean     @default(true)
   requiredLevel String      @default("Intermediate") // Beginner, Intermediate, Advanced, Expert
+  minExperience Float?      @default(0)
   weight        Float       @default(1.0)
   createdAt     DateTime    @default(now())
 
@@ -260,7 +290,7 @@ model OpportunityRequirement {
   id              String      @id @default(cuid())
   opportunityId   String
   opportunity     Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
-  requirementType String      // GPA, DEGREE, EXPERIENCE, LOCATION, WORK_AUTH, CERTIFICATION, GRADUATION
+  requirementType String      // GPA, DEGREE, EXPERIENCE, LOCATION, WORK_AUTH, CERTIFICATION, GRADUATION, LANGUAGE
   description     String
   isMandatory     Boolean     @default(true)
   value           String?
@@ -286,8 +316,8 @@ model Match {
   opportunity      Opportunity    @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
   studentProfileId String
   studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-  modelProvider    String         @default("gemini") // gemini, qwen, ollama, mock
-  modelName        String         @default("text-embedding-004")
+  modelProvider    String         @default("ollama")
+  modelName        String         @default("nomic-embed-text")
   hardEligibility  String         @default("PASS") // PASS, FAIL
   eligibilityReason String?
   semanticScore    Float          @default(0) // 0 - 100
@@ -309,7 +339,7 @@ model Embedding {
   id              String   @id @default(cuid())
   entityType      String   // STUDENT, OPPORTUNITY
   entityId        String
-  provider        String   // gemini, qwen, ollama, mock
+  provider        String   @default("ollama")
   modelName       String
   dimension       Int
   version         String   @default("v1")
@@ -355,7 +385,7 @@ model Experiment {
   description   String?
   studentId     String?
   opportunityId String?
-  providersJson String             // ["qwen", "gemini", "ollama"]
+  providersJson String             // ["ollama"]
   topK          Int                @default(10)
   status        String             @default("COMPLETED") // RUNNING, COMPLETED, FAILED
   createdAt     DateTime           @default(now())
@@ -402,10 +432,11 @@ model ModelEvaluationFeedback {
   studentProfile   StudentProfile  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   opportunityId    String
   opportunity      Opportunity     @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
-  modelProvider    String
+  modelProvider    String          @default("ollama")
   modelName        String
   score            Float
   recruiterDecision String         // STRONG_MATCH, GOOD_MATCH, WEAK_MATCH, WRONG_MATCH
+  feedbackReason   String?         // Skills mismatch, Experience mismatch, Education mismatch, Profile incomplete, Other
   feedbackText     String?
   createdById      String
   createdBy        User            @relation(fields: [createdById], references: [id], onDelete: Cascade)

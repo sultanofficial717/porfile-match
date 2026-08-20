@@ -47,12 +47,14 @@ export function MatchBreakdownModal({
   showFeedbackForm = true,
 }: MatchBreakdownModalProps) {
   const [feedbackSent, setFeedbackSent] = useState<string | null>(null);
+  const [selectedDecision, setSelectedDecision] = useState<string | null>(null);
+  const [feedbackReason, setFeedbackReason] = useState<string>("Strong skill alignment");
   const [feedbackText, setFeedbackText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleFeedback = async (decision: "STRONG_MATCH" | "GOOD_MATCH" | "WEAK_MATCH" | "WRONG_MATCH") => {
+  const handleFeedback = async (decision: string) => {
     if (!studentId || !opportunityId) return;
     setIsSubmitting(true);
     try {
@@ -64,6 +66,7 @@ export function MatchBreakdownModal({
           opportunityId,
           score: overallScore,
           recruiterDecision: decision,
+          feedbackReason,
           feedbackText,
         }),
       });
@@ -76,6 +79,7 @@ export function MatchBreakdownModal({
       setIsSubmitting(false);
     }
   };
+
 
   const scoreBreakdown = explanation?.scoreBreakdown || {
     semantic: semanticSimilarity || 0,
@@ -306,14 +310,14 @@ export function MatchBreakdownModal({
 
           {/* Recruiter Evaluation Feedback Section (Section 23) */}
           {showFeedbackForm && (
-            <div className="pt-4 border-t space-y-3">
+            <div className="pt-4 border-t space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h5 className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <ThumbsUp className="w-3.5 h-3.5 text-blue-600" /> Recruiter Evaluation & Model Feedback
                   </h5>
                   <p className="text-[11px] text-slate-500">
-                    Submit ground-truth feedback to evaluate and fine-tune future matching algorithms.
+                    Rate this candidate match and submit structured feedback to refine opportunity matching.
                   </p>
                 </div>
                 {feedbackSent && (
@@ -323,14 +327,15 @@ export function MatchBreakdownModal({
                 )}
               </div>
 
+              {/* Rating Buttons */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button
                   type="button"
                   disabled={isSubmitting}
-                  onClick={() => handleFeedback("STRONG_MATCH")}
+                  onClick={() => setSelectedDecision("STRONG_MATCH")}
                   className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                    feedbackSent === "STRONG_MATCH"
-                      ? "bg-emerald-600 text-white border-emerald-600"
+                    selectedDecision === "STRONG_MATCH"
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
                       : "bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 border-slate-200"
                   }`}
                 >
@@ -339,10 +344,10 @@ export function MatchBreakdownModal({
                 <button
                   type="button"
                   disabled={isSubmitting}
-                  onClick={() => handleFeedback("GOOD_MATCH")}
+                  onClick={() => setSelectedDecision("GOOD_MATCH")}
                   className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                    feedbackSent === "GOOD_MATCH"
-                      ? "bg-blue-600 text-white border-blue-600"
+                    selectedDecision === "GOOD_MATCH"
+                      ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                       : "bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-700 border-slate-200"
                   }`}
                 >
@@ -351,10 +356,10 @@ export function MatchBreakdownModal({
                 <button
                   type="button"
                   disabled={isSubmitting}
-                  onClick={() => handleFeedback("WEAK_MATCH")}
+                  onClick={() => setSelectedDecision("WEAK_MATCH")}
                   className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                    feedbackSent === "WEAK_MATCH"
-                      ? "bg-amber-600 text-white border-amber-600"
+                    selectedDecision === "WEAK_MATCH"
+                      ? "bg-amber-600 text-white border-amber-600 shadow-xs"
                       : "bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-amber-700 border-slate-200"
                   }`}
                 >
@@ -363,18 +368,77 @@ export function MatchBreakdownModal({
                 <button
                   type="button"
                   disabled={isSubmitting}
-                  onClick={() => handleFeedback("WRONG_MATCH")}
+                  onClick={() => setSelectedDecision("WRONG_MATCH")}
                   className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                    feedbackSent === "WRONG_MATCH"
-                      ? "bg-rose-600 text-white border-rose-600"
+                    selectedDecision === "WRONG_MATCH"
+                      ? "bg-rose-600 text-white border-rose-600 shadow-xs"
                       : "bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 border-slate-200"
                   }`}
                 >
                   ❌ Wrong Match
                 </button>
               </div>
+
+              {/* Structured Feedback Reason Selection */}
+              {selectedDecision && (
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-3 animate-in fade-in">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Reason for Rating
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {[
+                        "Strong skill alignment",
+                        "Skills mismatch",
+                        "Experience mismatch",
+                        "Education mismatch",
+                        "Profile incomplete",
+                        "Other",
+                      ].map((r) => (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setFeedbackReason(r)}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border text-left transition-colors ${
+                            feedbackReason === r
+                              ? "bg-blue-600 text-white border-blue-600 font-semibold"
+                              : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Optional Notes / Comments
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={feedbackText}
+                      onChange={(e) => setFeedbackText(e.target.value)}
+                      placeholder="Add specific feedback for this match recommendation..."
+                      className="w-full p-2.5 rounded-xl border bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-200 outline-hidden focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => handleFeedback(selectedDecision)}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                    >
+                      {isSubmitting ? "Submitting Feedback..." : "Submit Evaluation Feedback"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
+
         </div>
 
         {/* Footer */}

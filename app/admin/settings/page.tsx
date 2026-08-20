@@ -257,7 +257,7 @@ export default function AdminSettingsPage() {
         </div>
       </div>
 
-      {/* Notification Threshold Setting (Section 9) */}
+      {/* Notification Threshold Setting (Section 21) */}
       <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border shadow-xs space-y-4">
         <div>
           <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -265,12 +265,12 @@ export default function AdminSettingsPage() {
             <span>Match Notification Threshold</span>
           </h2>
           <p className="text-xs text-slate-500">
-            Automatically creates notification queue items when overall score &gt;= threshold and Stage 1 hard eligibility passes.
+            Automatically creates notification queue items when overall score &gt;= threshold (Default: 92%) and Stage 1 hard eligibility passes.
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {[80, 85, 90, 92, 93, 94, 95].map((t) => (
+          {[90, 91, 92, 93, 94, 95].map((t) => (
             <button
               key={t}
               type="button"
@@ -281,11 +281,12 @@ export default function AdminSettingsPage() {
                   : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50"
               }`}
             >
-              {t}% Threshold
+              {t}% Threshold {t === 92 ? "(Default)" : ""}
             </button>
           ))}
         </div>
       </div>
+
 
       {/* Action Footer */}
       <div className="flex items-center justify-between pt-2">

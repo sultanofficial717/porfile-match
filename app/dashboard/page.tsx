@@ -83,7 +83,35 @@ export default function StudentDashboard() {
     );
   }
 
-  const completeness = student?.profileCompleteness || 85;
+  if (!student) {
+    return (
+      <div className="text-center py-16 p-8 rounded-3xl border bg-white dark:bg-slate-900 space-y-4 max-w-xl mx-auto my-8">
+        <User className="w-12 h-12 text-blue-600 mx-auto" />
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+          No Student Profile Found
+        </h2>
+        <p className="text-xs text-slate-500">
+          Create your professional profile or import your CV to start generating AI-powered opportunity matches.
+        </p>
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <Link
+            href="/profile"
+            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors"
+          >
+            Create Profile
+          </Link>
+          <Link
+            href="/profile/import"
+            className="px-4 py-2 border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold hover:bg-slate-50 transition-colors"
+          >
+            Import CV
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const completeness = student?.profileCompleteness ?? 0;
 
   return (
     <div className="space-y-8">
@@ -98,8 +126,8 @@ export default function StudentDashboard() {
             Welcome back, {student?.user?.name || "Student"}!
           </h1>
           <p className="text-xs sm:text-sm text-blue-100">
-            {student?.degree || "Undergraduate"} · {student?.university || "University"} · GPA:{" "}
-            {student?.gpa ? student.gpa.toFixed(2) : "3.62"}
+            {student?.degree || "Student"} · {student?.university || "University"} · GPA:{" "}
+            {student?.gpa !== undefined && student?.gpa !== null ? student.gpa.toFixed(2) : "Not Set"}
           </p>
         </div>
 
@@ -117,7 +145,7 @@ export default function StudentDashboard() {
           </div>
           <div className="flex justify-between items-center pt-1">
             <span className="text-[10px] text-blue-200">
-              {completeness >= 85 ? "✓ Excellent profile depth" : "Add more skills & projects"}
+              {completeness >= 80 ? "✓ Strong profile depth" : "Add more skills & experiences"}
             </span>
             <Link
               href="/profile"
@@ -128,6 +156,7 @@ export default function StudentDashboard() {
           </div>
         </div>
       </div>
+
 
       {/* Recommended Opportunities Section */}
       <div className="space-y-4">

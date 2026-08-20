@@ -191,32 +191,15 @@ describe("Multi-Factor Scoring & Threshold Trigger", () => {
   });
 });
 
-describe("Embedding Provider System Conformity", () => {
-  it("instantiates Gemini, Qwen, Ollama, and Mock providers with valid interface", async () => {
-    const gemini = getEmbeddingProvider("gemini");
-    const qwen = getEmbeddingProvider("qwen");
+describe("Ollama Embedding Provider System", () => {
+  it("instantiates Ollama provider with valid interface and configurable model", async () => {
     const ollama = getEmbeddingProvider("ollama");
-    const mock = getEmbeddingProvider("mock");
+    expect(ollama).toBeDefined();
 
-    const mockInfo = await mock.getModelInfo();
-    expect(mockInfo.provider).toBe("mock");
-    expect(mockInfo.dimension).toBe(768);
-
-    const geminiInfo = await gemini.getModelInfo();
-    expect(geminiInfo.provider).toBe("gemini");
-    expect(geminiInfo.dimension).toBe(768);
-
-    const qwenInfo = await qwen.getModelInfo();
-    expect(qwenInfo.provider).toBe("qwen");
-    expect(qwenInfo.dimension).toBe(1024);
-
-    const ollamaInfo = await ollama.getModelInfo();
-    expect(ollamaInfo.provider).toBe("ollama");
-
-    // Test Mock Provider embedding generation
-    const res = await mock.embedText("Computer Science student skilled in Python and PyTorch");
-    expect(res.embedding).toHaveLength(768);
-    expect(res.isMock).toBe(true);
-    expect(res.latencyMs).toBeGreaterThanOrEqual(0);
+    const info = await ollama.getModelInfo();
+    expect(info.provider).toBe("ollama");
+    expect(info.modelName).toBe(process.env.OLLAMA_EMBEDDING_MODEL || "nomic-embed-text");
+    expect(ollama.getBaseUrl()).toBe(process.env.OLLAMA_BASE_URL || "http://localhost:11434");
   });
 });
+

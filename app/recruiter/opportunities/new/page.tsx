@@ -23,37 +23,57 @@ export default function NewOpportunityPage() {
 
   const [formData, setFormData] = useState({
     title: "",
-    type: "Internship",
-    company: "Example AI Labs",
+    type: "Job",
+    company: "",
     location: "Islamabad",
+    country: "Pakistan",
     workplaceType: "Hybrid",
     minGpa: 3.0,
-    requiredDegree: "Computer Science / Software Engineering / Data Science",
+    gpaScale: 4.0,
+    isGpaMandatory: true,
+    requiredDegree: "",
+    educationDegreePreferred: "",
+    fieldOfStudy: "",
     minExperienceYears: 1.0,
-    requiredSkills: "Python, Machine Learning, PyTorch",
-    preferredSkills: "TensorFlow, SQL",
-    certificationsRequired: "Preferred, not mandatory",
+    preferredExperienceYears: 2.0,
+    requiredSkills: "",
+    preferredSkills: "",
+    certificationsRequired: "",
+    languagesRequired: "English",
+    graduationYear: 2025,
     workAuthorization: "Pakistan",
-    deadline: "2026-10-30",
-    salaryOrStipend: "PKR 75,000 / month",
-    applicationUrl: "https://exampleai.com/apply",
-    contactInfo: "careers@exampleai.com",
-    fullDescription: "Join our core AI research and engineering team to develop and deploy cutting-edge deep learning models and computer vision pipelines.",
-    responsibilities: "Train transformer and CNN models in PyTorch, implement evaluation pipelines, and optimize real-time inference latency.",
-    preferredQualifications: "Hands-on experience with PyTorch, OpenCV, and FastAPI.",
-    benefits: "Mentorship from PhD researchers, hybrid flexibility, stipend, learning budget.",
+    deadline: "",
+    salaryOrStipend: "",
+    applicationUrl: "",
+    contactInfo: "",
+    fullDescription: "",
+    responsibilities: "",
+    preferredQualifications: "",
+    benefits: "",
   });
 
   const [skills, setSkills] = useState([
-    { skillName: "Python", isMandatory: true, requiredLevel: "Intermediate" },
-    { skillName: "Machine Learning", isMandatory: true, requiredLevel: "Intermediate" },
-    { skillName: "PyTorch", isMandatory: true, requiredLevel: "Beginner" },
-    { skillName: "TensorFlow", isMandatory: false, requiredLevel: "Beginner" },
-    { skillName: "SQL", isMandatory: false, requiredLevel: "Beginner" },
+    { skillName: "", isMandatory: true, requiredLevel: "Intermediate", minExperience: 0 },
   ]);
 
+  // Load current recruiter's company name if available
+  React.useEffect(() => {
+    const storedUserId = localStorage.getItem("current_user_id");
+    fetch(storedUserId ? `/api/auth/session?userId=${storedUserId}` : "/api/auth/session")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.currentUser?.recruiterProfile?.companyName) {
+          setFormData((prev) => ({
+            ...prev,
+            company: data.currentUser.recruiterProfile.companyName,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const addSkillRow = () => {
-    setSkills([...skills, { skillName: "", isMandatory: true, requiredLevel: "Intermediate" }]);
+    setSkills([...skills, { skillName: "", isMandatory: true, requiredLevel: "Intermediate", minExperience: 0 }]);
   };
 
   const removeSkillRow = (idx: number) => {
@@ -64,19 +84,26 @@ export default function NewOpportunityPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.title.trim() || !formData.company.trim() || !formData.fullDescription.trim()) {
+      alert("Please fill in Opportunity Title, Company Name, and Full Description.");
+      return;
+    }
+
     setSaving(true);
     try {
+      const validSkills = skills.filter((s) => s.skillName.trim().length > 0);
       const res = await fetch("/api/opportunities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          skills,
-          verificationStatus: "Verified",
+          skills: validSkills,
+          verificationStatus: "Pending", // Always Pending for admin verification
         }),
       });
 
       if (res.ok) {
+        alert("Opportunity created and submitted for Admin Verification!");
         router.push("/recruiter");
       } else {
         const err = await res.json();
@@ -89,6 +116,7 @@ export default function NewOpportunityPage() {
       setSaving(false);
     }
   };
+
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
