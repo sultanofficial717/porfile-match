@@ -123,7 +123,7 @@ export function Navbar() {
               <span className="text-slate-900 dark:text-white font-extrabold text-base leading-tight">
                 Match<span className="text-blue-600">AI</span>
               </span>
-              <span className="text-[10px] text-slate-500 font-medium tracking-wide uppercase">
+              <span className="text-[11px] text-slate-500 font-medium leading-none">
                 Hybrid AI Matching
               </span>
             </div>
@@ -157,16 +157,17 @@ export function Navbar() {
           </nav>
         </div>
 
-          {/* Ollama Status Pill */}
-          <Link
-            href="/admin/settings"
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium border hover:border-blue-400 transition-colors"
-            title="Ollama Local Embeddings Engine"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-semibold">Ollama:</span>
-            <span className="text-slate-500 font-mono text-[11px]">nomic-embed-text</span>
-          </Link>
+        {/* Informational Status Indicator (Distinct from Menu Buttons) */}
+        <Link
+          href="/admin/settings"
+          className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-md text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 text-xs font-medium transition-colors"
+          title="Ollama Local Embeddings Engine: Click to configure"
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+          <span className="text-slate-600 dark:text-slate-300 font-medium">Ollama:</span>
+          <span className="font-mono text-[11px] text-slate-500">nomic-embed-text</span>
+        </Link>
+
 
           {/* Active User Switcher Dropdown */}
           <div className="relative">

@@ -59,7 +59,7 @@ export default function LandingPage() {
           normalized multi-model embeddings, and transparent scoring.
         </p>
 
-        {/* 3 Main Demo Action Buttons */}
+        {/* 3 Main Demo Action Buttons (Hierarchical CTA System) */}
         <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
           <button
             onClick={() => launchDemo("STUDENT")}
@@ -72,18 +72,18 @@ export default function LandingPage() {
 
           <button
             onClick={() => launchDemo("RECRUITER")}
-            className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-sm shadow-md transition-all hover:scale-102"
+            className="flex items-center gap-2 px-6 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-800 dark:text-slate-200 font-bold text-sm shadow-xs transition-all hover:scale-102"
           >
-            <Building2 className="w-4 h-4" />
+            <Building2 className="w-4 h-4 text-slate-500" />
             <span>Try Recruiter Demo</span>
           </button>
 
           <button
             onClick={() => launchDemo("ADMIN")}
-            className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-bold text-sm transition-all hover:scale-102"
+            className="flex items-center gap-2 px-6 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-800 dark:text-slate-200 font-bold text-sm shadow-xs transition-all hover:scale-102"
           >
-            <FlaskConical className="w-4 h-4 text-indigo-600" />
-            <span>Open Admin & Experiments</span>
+            <ShieldCheck className="w-4 h-4 text-slate-500" />
+            <span>Open Admin Panel</span>
           </button>
         </div>
       </section>
@@ -99,28 +99,30 @@ export default function LandingPage() {
             Hybrid Matching: Hard Eligibility + Ollama Semantic AI
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Never equate pure cosine similarity with candidate qualification. We enforce strict multi-stage verification.
+            Never equate simple semantic similarity with candidate qualification. We enforce strict multi-stage verification.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
           {/* Step 1: Stage 1 Hard Eligibility */}
-          <div className="p-5 rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="w-7 h-7 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center">
-                1
-              </span>
-              <span className="text-[11px] font-bold uppercase text-slate-400">Step 1</span>
+          <div className="p-5 rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="w-7 h-7 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center">
+                  1
+                </span>
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Step 1</span>
+              </div>
+              <div className="min-h-[76px]">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Stage 1 — Hard Eligibility
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Mandatory criteria (GPA, Degree, Experience, Required Skills, Work Auth) are evaluated first. If any fails, candidate is marked NOT ELIGIBLE.
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Stage 1 — Hard Eligibility
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Mandatory criteria (GPA, Degree, Experience, Required Skills, Work Auth) are evaluated first. If any fails, candidate is marked NOT ELIGIBLE.
-              </p>
-            </div>
-            <div className="space-y-1.5 p-3 rounded-xl bg-white dark:bg-slate-900 border text-xs font-medium">
+            <div className="mt-4 space-y-1.5 p-3 rounded-xl bg-white dark:bg-slate-900 border text-xs font-medium">
               <div className="flex items-center justify-between text-emerald-600 font-bold">
                 <span>Eligible Candidate (Meets all rules)</span>
                 <CheckCircle2 className="w-4 h-4" />
@@ -133,54 +135,58 @@ export default function LandingPage() {
           </div>
 
           {/* Step 2: Normalized Ollama Embeddings */}
-          <div className="p-5 rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="w-7 h-7 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
-                2
-              </span>
-              <span className="text-[11px] font-bold uppercase text-slate-400">Step 2</span>
+          <div className="p-5 rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="w-7 h-7 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center">
+                  2
+                </span>
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Step 2</span>
+              </div>
+              <div className="min-h-[76px]">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Stage 2 — Ollama Embeddings
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Normalized matching documents are embedded server-side using your local Ollama embedding model.
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Stage 2 — Ollama Embeddings
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Normalized matching documents are embedded server-side using your local Ollama embedding model.
-              </p>
-            </div>
-            <div className="space-y-1.5 p-3 rounded-xl bg-white dark:bg-slate-900 border text-xs">
+            <div className="mt-4 space-y-1.5 p-3 rounded-xl bg-white dark:bg-slate-900 border text-xs">
               <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
                 <span className="font-semibold">Ollama Provider:</span>
-                <span className="font-mono font-bold text-blue-600">Localhost</span>
+                <span className="font-mono text-slate-600 dark:text-slate-300 font-medium">Localhost</span>
               </div>
               <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
                 <span className="font-semibold">Embedding Model:</span>
-                <span className="font-mono font-bold text-purple-600">Configured via ENV</span>
+                <span className="font-mono text-slate-600 dark:text-slate-300 font-medium">Configured via ENV</span>
               </div>
               <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
                 <span className="font-semibold">Vector Storage:</span>
-                <span className="font-mono font-bold text-emerald-600">Normalized SQLite</span>
+                <span className="font-mono text-slate-600 dark:text-slate-300 font-medium">Normalized SQLite</span>
               </div>
             </div>
           </div>
 
           {/* Step 3: Transparent Scoring & Alerts */}
-          <div className="p-5 rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="w-7 h-7 rounded-xl bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">
-                3
-              </span>
-              <span className="text-[11px] font-bold uppercase text-slate-400">Step 3</span>
+          <div className="p-5 rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="w-7 h-7 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center">
+                  3
+                </span>
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Step 3</span>
+              </div>
+              <div className="min-h-[76px]">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Stage 3 — Scoring & Notifications
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Weighted combination of Semantic, Skill, Experience, and Education scores triggers threshold notifications (e.g. &gt;= 92%).
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Stage 3 — Weighted Score & Dashboard Notifications
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Weighted combination of Semantic, Skill, Experience, and Education scores triggers threshold notifications (e.g. &gt;= 92%).
-              </p>
-            </div>
-            <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border flex items-center justify-between">
+            <div className="mt-4 p-3 rounded-xl bg-white dark:bg-slate-900 border flex items-center justify-between">
               <div className="space-y-0.5">
                 <p className="text-[10px] text-slate-400 font-bold uppercase">Match Threshold</p>
                 <p className="text-sm font-bold text-slate-900 dark:text-white">Configurable 90% - 95%</p>
@@ -193,43 +199,49 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Role Workflows */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="p-6 rounded-3xl border bg-white dark:bg-slate-900 space-y-3">
-          <div className="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-blue-600 font-bold">
-            <UserCheck className="w-5 h-5" />
+      {/* Role Workflows (Aligned Baselines) */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+        <div className="p-6 rounded-3xl border bg-white dark:bg-slate-900 flex flex-col justify-between">
+          <div className="space-y-3">
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-blue-600 font-bold">
+              <UserCheck className="w-5 h-5" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">1. Students</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Create full structured profiles or import CVs with interactive review. View real match breakdowns and notifications.
+            </p>
           </div>
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">1. Students</h3>
-          <p className="text-xs text-slate-500">
-            Create full structured profiles or import CVs with interactive review. View real match breakdowns and notifications.
-          </p>
-          <div className="pt-2 text-xs font-semibold text-blue-600 flex items-center gap-1">
+          <div className="pt-4 mt-auto text-xs font-semibold text-blue-600 flex items-center gap-1">
             <Link href="/dashboard" className="hover:underline">Open Student Dashboard →</Link>
           </div>
         </div>
 
-        <div className="p-6 rounded-3xl border bg-white dark:bg-slate-900 space-y-3">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 font-bold">
-            <Building2 className="w-5 h-5" />
+        <div className="p-6 rounded-3xl border bg-white dark:bg-slate-900 flex flex-col justify-between">
+          <div className="space-y-3">
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-blue-600 font-bold">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">2. Recruiters</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Publish real opportunities with structured degree, GPA, experience, and skill criteria. Review and evaluate matched candidates.
+            </p>
           </div>
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">2. Recruiters</h3>
-          <p className="text-xs text-slate-500">
-            Publish real opportunities with structured degree, GPA, experience, and skill criteria. Review and evaluate matched candidates.
-          </p>
-          <div className="pt-2 text-xs font-semibold text-emerald-600 flex items-center gap-1">
-            <Link href="/recruiter" className="hover:underline">Open Recruiter Hub →</Link>
+          <div className="pt-4 mt-auto text-xs font-semibold text-blue-600 flex items-center gap-1">
+            <Link href="/recruiter" className="hover:underline">Open Recruiter Dashboard →</Link>
           </div>
         </div>
 
-        <div className="p-6 rounded-3xl border bg-white dark:bg-slate-900 space-y-3">
-          <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950 flex items-center justify-center text-purple-600 font-bold">
-            <ShieldCheck className="w-5 h-5" />
+        <div className="p-6 rounded-3xl border bg-white dark:bg-slate-900 flex flex-col justify-between">
+          <div className="space-y-3">
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-blue-600 font-bold">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">3. Admin</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Verify pending recruiter opportunities, tune match weights & notification thresholds, and monitor Ollama health.
+            </p>
           </div>
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">3. Admin</h3>
-          <p className="text-xs text-slate-500">
-            Verify pending recruiter opportunities, tune match weights & notification thresholds, and monitor Ollama health.
-          </p>
-          <div className="pt-2 text-xs font-semibold text-purple-600 flex items-center gap-1">
+          <div className="pt-4 mt-auto text-xs font-semibold text-blue-600 flex items-center gap-1">
             <Link href="/admin" className="hover:underline">Open Admin Panel →</Link>
           </div>
         </div>
@@ -237,3 +249,4 @@ export default function LandingPage() {
     </div>
   );
 }
+
