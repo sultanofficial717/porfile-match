@@ -1,22 +1,22 @@
 # dependencies
-/node_modules
-/.pnp
+node_modules/
+.pnp
 .pnp.js
 .yarn/install-state.gz
 
 # testing
-/coverage
+coverage/
 
-# next.js
-/.next/
-/out/
-
-# production
-/build
+# next.js and build outputs
+.next/
+out/
+dist/
+build/
 
 # misc
 .DS_Store
 *.pem
+files.zip
 
 # debug logs
 npm-debug.log*
@@ -31,8 +31,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# SQLite local database
+# SQLite local database & data files
 *.db
 *.db-journal
 dev.db
 dev.db-journal
+backend/data/profiles/*.json
+!backend/data/profiles/.gitkeep
+
+
