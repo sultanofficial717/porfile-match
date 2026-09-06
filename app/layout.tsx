@@ -6,9 +6,9 @@ import { Navbar } from "@/components/navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AI Student & Professional Opportunity Matching Platform",
+  title: "EasyMatch — AI Opportunity Matching Platform",
   description:
-    "Hybrid structured + semantic AI matching engine testing Qwen, Gemini, and Ollama embeddings for opportunity alignment.",
+    "EasyMatch hybrid structured + semantic AI matching engine for student and professional opportunities.",
 };
 
 export default function RootLayout({
@@ -25,7 +25,7 @@ export default function RootLayout({
         </main>
         <footer className="border-t border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 py-6 text-center text-xs text-slate-500">
           <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <span>© 2026 AI Opportunity Matcher — Proof of Concept / Research Platform</span>
+            <span>© 2026 EasyMatch — AI Opportunity Matching Platform</span>
             <div className="flex items-center gap-4 text-slate-600 dark:text-slate-400">
               <span className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />

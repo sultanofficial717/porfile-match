@@ -47,6 +47,11 @@ model StudentProfile {
   privacyConsent      Boolean           @default(true)
   allowRecruiterView  Boolean           @default(true)
   profileCompleteness Int               @default(0)
+  preferredOpportunityTypes String?     @default("[\"Job\",\"Internship\"]")
+  preferredWorkMode   String?           @default("Any") // Remote, Hybrid, On-site, Any
+  minMatchScore       Float             @default(85.0)
+  preferredLocations  String?           // comma-separated
+  targetRoles         String?           // comma-separated
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 
@@ -442,3 +447,43 @@ model ModelEvaluationFeedback {
   createdBy        User            @relation(fields: [createdById], references: [id], onDelete: Cascade)
   createdAt        DateTime        @default(now())
 }
+
+model Event {
+  id              String         @id @default(cuid())
+  title           String
+  company         String
+  companyLogo     String?
+  description     String
+  type            String         @default("Info Session") // Info Session, Tech Talk, Career Fair, Workshop, AMA
+  date            String         // E.g. "Oct 24, 2025"
+  time            String         // E.g. "5:00 PM - 6:30 PM EST"
+  duration        String         @default("60 mins")
+  locationType    String         @default("Virtual") // Virtual, In-person, Hybrid
+  meetingUrl      String?
+  tags            String         // comma-separated or JSON
+  hostName        String?
+  hostTitle       String?
+  hostAvatar      String?
+  targetAudience  String?
+  capacity        Int            @default(500)
+  recruiterId     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  rsvps           EventRsvp[]
+}
+
+model EventRsvp {
+  id               String         @id @default(cuid())
+  eventId          String
+  event            Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId           String
+  studentName      String?
+  studentEmail     String?
+  studentMajor     String?
+  status           String         @default("REGISTERED") // REGISTERED, ATTENDED, CANCELLED
+  createdAt        DateTime       @default(now())
+
+  @@unique([eventId, userId])
+}
+

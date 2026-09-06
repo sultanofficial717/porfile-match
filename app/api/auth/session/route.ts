@@ -6,12 +6,16 @@ export async function GET(request: NextRequest) {
     const roleParam = request.nextUrl.searchParams.get("role");
     const userIdParam = request.nextUrl.searchParams.get("userId");
 
+    const guestParam = request.nextUrl.searchParams.get("guest");
+
     let user = null;
     if (userIdParam) {
       user = await prisma.user.findUnique({
         where: { id: userIdParam },
         include: { studentProfile: true, recruiterProfile: true },
       });
+    } else if (guestParam === "true") {
+      user = null;
     } else if (roleParam) {
       user = await prisma.user.findFirst({
         where: { role: roleParam.toUpperCase() },
@@ -49,7 +53,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, name, role = "STUDENT", companyName, position } = body;
+    const { email, name, role = "STUDENT", companyName, position, degree, university } = body;
 
     if (!email || !email.trim()) {
       return NextResponse.json({ error: "Email is required." }, { status: 400 });
@@ -82,7 +86,9 @@ export async function POST(request: NextRequest) {
               studentProfile: {
                 create: {
                   country: "Pakistan",
-                  profileCompleteness: 15,
+                  profileCompleteness: 30,
+                  degree: degree || "B.S. in Computer Science",
+                  university: university || "University",
                 },
               },
             }
@@ -92,7 +98,7 @@ export async function POST(request: NextRequest) {
               recruiterProfile: {
                 create: {
                   companyName: companyName || "My Company",
-                  position: position || "Talent Acquisition",
+                  position: position || "Talent Acquisition Lead",
                   isVerified: true,
                 },
               },
