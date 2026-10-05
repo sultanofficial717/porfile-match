@@ -2,19 +2,16 @@
 
 import React, { useState } from "react";
 import {
-  X,
-  Sparkles,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  GraduationCap,
-  Briefcase,
-  Layers,
-  ThumbsUp,
-  Award,
-  BookOpen,
-  Info,
-} from "lucide-react";
+  Cancel01Icon as X,
+  Tick02Icon as CheckCircle2,
+  MultiplicationSignCircleIcon as XCircle,
+  Alert01Icon as AlertTriangle,
+  Mortarboard01Icon as GraduationCap,
+  Briefcase02Icon as Briefcase,
+  Layers01Icon as Layers,
+  ThumbsUpIcon as ThumbsUp,
+  BookOpen01Icon as BookOpen,
+} from "hugeicons-react";
 import { MatchExplanation, EligibilityResult } from "@/lib/types";
 
 interface MatchBreakdownModalProps {
@@ -80,7 +77,6 @@ export function MatchBreakdownModal({
     }
   };
 
-
   const scoreBreakdown = explanation?.scoreBreakdown || {
     semantic: semanticSimilarity || 0,
     skill: 0,
@@ -99,95 +95,86 @@ export function MatchBreakdownModal({
     otherWeight: 0.05,
   };
 
+  const scoreBars = [
+    { label: "Semantic Similarity", value: scoreBreakdown.semantic, weight: weights.semanticWeight, color: "#F59E0B" },
+    { label: "Skill Match", value: scoreBreakdown.skill, weight: weights.skillWeight, color: "#2563EB", icon: <BookOpen className="w-3.5 h-3.5" /> },
+    { label: "Experience", value: scoreBreakdown.experience, weight: weights.experienceWeight, color: "#059669", icon: <Briefcase className="w-3.5 h-3.5" /> },
+    { label: "Education", value: scoreBreakdown.education, weight: weights.educationWeight, color: "#7C3AED", icon: <GraduationCap className="w-3.5 h-3.5" /> },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
-      <div className="relative w-full max-w-3xl rounded-3xl bg-white dark:bg-slate-900 border shadow-2xl overflow-hidden my-8">
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="relative w-full max-w-3xl rounded-xl bg-white border border-[#E5E7EB] overflow-hidden my-8">
         {/* Header */}
-        <div className="px-6 py-5 border-b bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-slate-800/50 dark:to-slate-800/30 flex items-start justify-between">
+        <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-start justify-between bg-[#FAFAFA]">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                Explainable Match Breakdown
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase bg-[#FEF3C7] text-[#92400E]">
+                Match Breakdown
               </span>
               {hardEligibility.passed ? (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Hard Eligibility: PASS
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#D1FAE5] text-[#065F46] flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Eligible
                 </span>
               ) : (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 flex items-center gap-1">
-                  <XCircle className="w-3 h-3" /> Hard Eligibility: FAIL
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#FEE2E2] text-[#991B1B] flex items-center gap-1">
+                  <XCircle className="w-3 h-3" /> Ineligible
                 </span>
               )}
             </div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{title}</h2>
-            {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+            <h2 className="text-lg font-display font-bold text-[#0A0A0A]">{title}</h2>
+            {subtitle && <p className="text-xs text-[#6B7280]">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-md text-[#9CA3AF] hover:text-[#0A0A0A] hover:bg-[#F3F4F6] transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
-          {/* Overall Assessment Banner */}
-          <div
-            className={`p-4 rounded-2xl border flex items-center justify-between ${
-              hardEligibility.passed
-                ? overallScore >= 90
-                  ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800"
-                  : overallScore >= 80
-                  ? "bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800"
-                  : "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800"
-                : "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800"
-            }`}
-          >
-            <div className="space-y-0.5">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Assessment Status
-              </p>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                {explanation?.overallAssessment || "Matching Evaluation"}
+        {/* Body */}
+        <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+          {/* Overall Score Banner */}
+          <div className={`p-4 rounded-lg border flex items-center justify-between ${
+            hardEligibility.passed
+              ? overallScore >= 90 ? "bg-[#D1FAE5] border-[#A7F3D0]" : overallScore >= 80 ? "bg-[#FEF3C7] border-[#FDE68A]" : "bg-[#F9FAFB] border-[#E5E7EB]"
+              : "bg-[#FEE2E2] border-[#FECACA]"
+          }`}>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Assessment</p>
+              <h3 className="text-base font-display font-bold text-[#0A0A0A]">
+                {explanation?.overallAssessment || "Match Evaluation"}
               </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-300">
-                {hardEligibility.passed
-                  ? `Structured requirements satisfied + calculated hybrid multi-factor score.`
-                  : `Candidate does not satisfy mandatory eligibility constraints.`}
-              </p>
             </div>
             <div className="text-right">
-              <span className="text-3xl font-black text-slate-900 dark:text-white">
+              <span className="text-3xl font-display font-bold text-[#0A0A0A]">
                 {overallScore.toFixed(0)}%
               </span>
-              <p className="text-[10px] text-slate-500 font-semibold uppercase">Overall Score</p>
+              <p className="text-[10px] text-[#6B7280] font-medium">Overall Score</p>
             </div>
           </div>
 
-          {/* Stage 1: Hard Eligibility Details */}
+          {/* Eligibility Details */}
           <div className="space-y-2">
-            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldCheckIcon /> Stage 1: Hard Eligibility Verification
+            <h4 className="text-xs font-semibold text-[#374151] uppercase tracking-wider flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#059669]" /> Hard Eligibility
             </h4>
-            <div className="p-3.5 rounded-xl border bg-slate-50 dark:bg-slate-800/50 space-y-2 text-xs">
+            <div className="p-3 rounded-lg border border-[#E5E7EB] bg-[#FAFAFA] space-y-1.5 text-xs">
               {hardEligibility.failedChecks && hardEligibility.failedChecks.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="font-bold text-red-600 dark:text-red-400">Failed Mandatory Criteria:</p>
-                  {hardEligibility.failedChecks.map((f, idx) => (
-                    <div key={idx} className="flex items-start gap-2 text-red-700 dark:text-red-300">
+                <div className="space-y-1">
+                  {hardEligibility.failedChecks.map((f: any, idx: number) => (
+                    <div key={idx} className="flex items-start gap-1.5 text-[#DC2626]">
                       <XCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                       <span>{f.message}</span>
                     </div>
                   ))}
                 </div>
               )}
-
               {hardEligibility.passedChecks && hardEligibility.passedChecks.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="font-bold text-emerald-700 dark:text-emerald-400">Satisfied Criteria:</p>
-                  {hardEligibility.passedChecks.map((p, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
+                <div className="space-y-1">
+                  {hardEligibility.passedChecks.map((p: any, idx: number) => (
+                    <div key={idx} className="flex items-center gap-1.5 text-[#059669]">
                       <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                       <span>{p}</span>
                     </div>
@@ -197,212 +184,122 @@ export function MatchBreakdownModal({
             </div>
           </div>
 
-          {/* Stage 2: Weighted Multi-Factor Score Breakdown */}
+          {/* Score Breakdown Bars */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Layers className="w-4 h-4 text-blue-600" /> Transparent Scoring Matrix
+            <h4 className="text-xs font-semibold text-[#374151] uppercase tracking-wider flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-[#F59E0B]" /> Score Breakdown
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Semantic Similarity */}
-              <div className="p-3 rounded-xl border bg-white dark:bg-slate-800 space-y-1.5">
-                <div className="flex justify-between text-xs font-semibold">
-                  <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> Semantic Similarity
-                  </span>
-                  <span className="font-bold">{scoreBreakdown.semantic.toFixed(1)}% (Weight: {(weights.semanticWeight * 100).toFixed(0)}%)</span>
+              {scoreBars.map((bar) => (
+                <div key={bar.label} className="p-3 rounded-lg border border-[#E5E7EB] bg-white space-y-1.5">
+                  <div className="flex justify-between text-xs font-medium">
+                    <span className="text-[#374151] flex items-center gap-1" style={{ color: bar.color }}>
+                      {bar.icon} {bar.label}
+                    </span>
+                    <span className="font-semibold text-[#0A0A0A]">{bar.value.toFixed(1)}%</span>
+                  </div>
+                  <div className="w-full bg-[#F3F4F6] h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${Math.min(100, bar.value)}%`, backgroundColor: bar.color }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-[#9CA3AF]">Weight: {(bar.weight * 100).toFixed(0)}%</p>
                 </div>
-                <div className="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-indigo-600 h-full rounded-full transition-all"
-                    style={{ width: `${Math.min(100, scoreBreakdown.semantic)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Skill Match */}
-              <div className="p-3 rounded-xl border bg-white dark:bg-slate-800 space-y-1.5">
-                <div className="flex justify-between text-xs font-semibold">
-                  <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                    <BookOpen className="w-3.5 h-3.5 text-blue-500" /> Skill Match
-                  </span>
-                  <span className="font-bold">{scoreBreakdown.skill.toFixed(1)}% (Weight: {(weights.skillWeight * 100).toFixed(0)}%)</span>
-                </div>
-                <div className="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-blue-600 h-full rounded-full transition-all"
-                    style={{ width: `${Math.min(100, scoreBreakdown.skill)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Experience Match */}
-              <div className="p-3 rounded-xl border bg-white dark:bg-slate-800 space-y-1.5">
-                <div className="flex justify-between text-xs font-semibold">
-                  <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                    <Briefcase className="w-3.5 h-3.5 text-emerald-500" /> Experience Match
-                  </span>
-                  <span className="font-bold">{scoreBreakdown.experience.toFixed(1)}% (Weight: {(weights.experienceWeight * 100).toFixed(0)}%)</span>
-                </div>
-                <div className="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-emerald-600 h-full rounded-full transition-all"
-                    style={{ width: `${Math.min(100, scoreBreakdown.experience)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Education Match */}
-              <div className="p-3 rounded-xl border bg-white dark:bg-slate-800 space-y-1.5">
-                <div className="flex justify-between text-xs font-semibold">
-                  <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                    <GraduationCap className="w-3.5 h-3.5 text-amber-500" /> Education Match
-                  </span>
-                  <span className="font-bold">{scoreBreakdown.education.toFixed(1)}% (Weight: {(weights.educationWeight * 100).toFixed(0)}%)</span>
-                </div>
-                <div className="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-amber-500 h-full rounded-full transition-all"
-                    style={{ width: `${Math.min(100, scoreBreakdown.education)}%` }}
-                  />
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
           {/* Highlights & Gaps */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Strong Matches */}
-            <div className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-2">
-              <h5 className="text-xs font-bold uppercase text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Strong Matches
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="p-3 rounded-lg border border-[#A7F3D0] bg-[#F0FDF4] space-y-2">
+              <h5 className="text-xs font-semibold uppercase text-[#065F46] flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Strong Matches
               </h5>
               {explanation?.strongMatches && explanation.strongMatches.length > 0 ? (
-                <ul className="space-y-1 text-xs text-slate-700 dark:text-slate-300">
-                  {explanation.strongMatches.map((item, idx) => (
+                <ul className="space-y-1 text-xs text-[#374151]">
+                  {explanation.strongMatches.map((item: any, idx: number) => (
                     <li key={idx} className="flex items-center gap-1.5">
-                      <span className="text-emerald-600 font-bold">✓</span> {item}
+                      <span className="text-[#059669] font-bold">✓</span> {item}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-xs text-slate-500">No standout highlights recorded.</p>
+                <p className="text-xs text-[#9CA3AF]">No standout highlights.</p>
               )}
             </div>
 
-            {/* Missing or Lower Level Skills */}
-            <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50/40 dark:bg-amber-950/20 space-y-2">
-              <h5 className="text-xs font-bold uppercase text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600" /> Missing / Unmet Skills
+            <div className="p-3 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] space-y-2">
+              <h5 className="text-xs font-semibold uppercase text-[#92400E] flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5" /> Gaps
               </h5>
               {explanation?.missingSkills && explanation.missingSkills.length > 0 ? (
-                <ul className="space-y-1 text-xs text-slate-700 dark:text-slate-300">
-                  {explanation.missingSkills.map((item, idx) => (
-                    <li key={idx} className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
-                      <span className="text-amber-600 font-bold">○</span> {item}
+                <ul className="space-y-1 text-xs text-[#374151]">
+                  {explanation.missingSkills.map((item: any, idx: number) => (
+                    <li key={idx} className="flex items-center gap-1.5 text-[#92400E]">
+                      <span className="font-bold">○</span> {item}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-xs text-slate-500">All required and preferred skills satisfied!</p>
+                <p className="text-xs text-[#9CA3AF]">All skills satisfied!</p>
               )}
             </div>
           </div>
 
-          {/* Recruiter Evaluation Feedback Section (Section 23) */}
+          {/* Recruiter Feedback */}
           {showFeedbackForm && (
-            <div className="pt-4 border-t space-y-4">
+            <div className="pt-4 border-t border-[#E5E7EB] space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <h5 className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <ThumbsUp className="w-3.5 h-3.5 text-blue-600" /> Recruiter Evaluation & Model Feedback
+                  <h5 className="text-xs font-semibold text-[#374151] flex items-center gap-1.5">
+                    <ThumbsUp className="w-3.5 h-3.5 text-[#F59E0B]" /> Recruiter Feedback
                   </h5>
-                  <p className="text-[11px] text-slate-500">
-                    Rate this candidate match and submit structured feedback to refine opportunity matching.
-                  </p>
+                  <p className="text-[11px] text-[#9CA3AF]">Rate this match to improve future recommendations.</p>
                 </div>
                 {feedbackSent && (
-                  <span className="text-xs font-semibold text-emerald-600">
-                    ✓ Feedback saved ({feedbackSent})
-                  </span>
+                  <span className="text-xs font-medium text-[#059669]">✓ Saved</span>
                 )}
               </div>
 
-              {/* Rating Buttons */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => setSelectedDecision("STRONG_MATCH")}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                    selectedDecision === "STRONG_MATCH"
-                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                      : "bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 border-slate-200"
-                  }`}
-                >
-                  ⭐ Strong Match
-                </button>
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => setSelectedDecision("GOOD_MATCH")}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                    selectedDecision === "GOOD_MATCH"
-                      ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                      : "bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-700 border-slate-200"
-                  }`}
-                >
-                  👍 Good Match
-                </button>
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => setSelectedDecision("WEAK_MATCH")}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                    selectedDecision === "WEAK_MATCH"
-                      ? "bg-amber-600 text-white border-amber-600 shadow-xs"
-                      : "bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-amber-700 border-slate-200"
-                  }`}
-                >
-                  ⚠️ Weak Match
-                </button>
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => setSelectedDecision("WRONG_MATCH")}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                    selectedDecision === "WRONG_MATCH"
-                      ? "bg-rose-600 text-white border-rose-600 shadow-xs"
-                      : "bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 border-slate-200"
-                  }`}
-                >
-                  ❌ Wrong Match
-                </button>
+                {[
+                  { key: "STRONG_MATCH", label: "⭐ Strong", color: "#059669" },
+                  { key: "GOOD_MATCH", label: "👍 Good", color: "#2563EB" },
+                  { key: "WEAK_MATCH", label: "⚠️ Weak", color: "#D97706" },
+                  { key: "WRONG_MATCH", label: "❌ Wrong", color: "#DC2626" },
+                ].map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => setSelectedDecision(opt.key)}
+                    className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                      selectedDecision === opt.key
+                        ? "text-white border-transparent"
+                        : "bg-white text-[#374151] border-[#E5E7EB] hover:bg-[#F9FAFB]"
+                    }`}
+                    style={selectedDecision === opt.key ? { backgroundColor: opt.color } : {}}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
 
-              {/* Structured Feedback Reason Selection */}
               {selectedDecision && (
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-3 animate-in fade-in">
+                <div className="p-3 rounded-lg bg-[#FAFAFA] border border-[#E5E7EB] space-y-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Reason for Rating
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {[
-                        "Strong skill alignment",
-                        "Skills mismatch",
-                        "Experience mismatch",
-                        "Education mismatch",
-                        "Profile incomplete",
-                        "Other",
-                      ].map((r) => (
+                    <label className="block text-xs font-medium text-[#374151] mb-1">Reason</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {["Strong skill alignment", "Skills mismatch", "Experience mismatch", "Education mismatch", "Profile incomplete", "Other"].map((r) => (
                         <button
                           key={r}
                           type="button"
                           onClick={() => setFeedbackReason(r)}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border text-left transition-colors ${
+                          className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${
                             feedbackReason === r
-                              ? "bg-blue-600 text-white border-blue-600 font-semibold"
-                              : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 hover:bg-slate-100"
+                              ? "bg-[#F59E0B] text-white border-[#F59E0B]"
+                              : "bg-white text-[#374151] border-[#E5E7EB] hover:bg-[#F9FAFB]"
                           }`}
                         >
                           {r}
@@ -410,52 +307,43 @@ export function MatchBreakdownModal({
                       ))}
                     </div>
                   </div>
-
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Optional Notes / Comments
-                    </label>
+                    <label className="block text-xs font-medium text-[#374151] mb-1">Notes (optional)</label>
                     <textarea
                       rows={2}
                       value={feedbackText}
                       onChange={(e) => setFeedbackText(e.target.value)}
-                      placeholder="Add specific feedback for this match recommendation..."
-                      className="w-full p-2.5 rounded-xl border bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-200 outline-hidden focus:ring-2 focus:ring-blue-500"
+                      placeholder="Additional feedback..."
+                      className="w-full p-2 rounded-lg border border-[#E5E7EB] bg-white text-xs text-[#0A0A0A] outline-none focus:ring-2 focus:ring-[#F59E0B]"
                     />
                   </div>
-
                   <div className="flex justify-end">
                     <button
                       type="button"
                       disabled={isSubmitting}
                       onClick={() => handleFeedback(selectedDecision)}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                      className="px-4 py-2 bg-[#0A0A0A] hover:bg-[#374151] text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                     >
-                      {isSubmitting ? "Submitting Feedback..." : "Submit Evaluation Feedback"}
+                      {isSubmitting ? "Submitting..." : "Submit Feedback"}
                     </button>
                   </div>
                 </div>
               )}
             </div>
           )}
-
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t bg-slate-50 dark:bg-slate-800/60 flex justify-end">
+        <div className="px-6 py-3 border-t border-[#E5E7EB] bg-[#FAFAFA] flex justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs"
+            className="px-4 py-2 rounded-lg bg-[#0A0A0A] hover:bg-[#374151] text-white text-xs font-semibold transition-colors"
           >
-            Close Details
+            Close
           </button>
         </div>
       </div>
     </div>
   );
-}
-
-function ShieldCheckIcon() {
-  return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
 }

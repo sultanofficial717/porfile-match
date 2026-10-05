@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   FileUp,
   FileText,
-  Sparkles,
+  Wand2,
   CheckCircle2,
   AlertCircle,
   Save,
@@ -17,12 +17,23 @@ import {
   Layers,
   Award,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import {
+  upsertStudentProfile,
+  createExperience,
+  createProject,
+  generateMatchesForStudent,
+  getStudentProfile,
+} from "@/lib/database";
+import { parseResumeText, type ParsedCvResult } from "@/lib/parsing/cv-parser";
+import { toast } from "sonner";
 
 export default function ImportCvPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [resumeText, setResumeText] = useState("");
   const [isParsing, setIsParsing] = useState(false);
-  const [parsedData, setParsedData] = useState<any>(null);
+  const [parsedData, setParsedData] = useState<ParsedCvResult | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -41,7 +52,7 @@ Graduation: June 2025
 Key Courses: Machine Learning, Deep Learning, Natural Language Processing, Distributed Systems, Data Structures & Algorithms
 
 TECHNICAL SKILLS:
-- Languages & Frameworks: Python (Advanced), PyTorch (Intermediate), TensorFlow (Intermediate), SQL, FastAPI, Docker
+- Languages & Frameworks: Python, PyTorch, TensorFlow, SQL, FastAPI, Docker, React, TypeScript
 - Machine Learning & AI: Transformers, Computer Vision, LLM fine-tuning, RAG pipelines, Scikit-Learn, Pandas
 
 EXPERIENCE:
@@ -53,101 +64,126 @@ RESEARCH PROJECTS:
 1. MedVision: Vision Transformer for Biomedical Imaging
 - Implemented PyTorch ViT architecture with 94.8% F1-score on chest X-ray classification.
 2. Enterprise RAG Semantic Document Retriever
-- Built vector search indexing using Qwen embeddings and ChromaDB.
+- Built vector search indexing using embeddings and ChromaDB.
 
 CERTIFICATIONS:
 - Deep Learning Specialization (DeepLearning.AI)
 - AWS Certified Cloud Practitioner
   `.trim();
 
-  const handleParse = async (textToParse?: string) => {
+  const handleParse = (textToParse?: string) => {
     const text = textToParse || resumeText;
     if (!text || text.trim().length < 10) {
-      alert("Please enter or paste your resume text.");
+      toast.error("Please enter or paste your resume text.");
       return;
     }
 
     setIsParsing(true);
     try {
-      const res = await fetch("/api/parse-cv", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setParsedData(data);
-      } else {
-        const err = await res.json();
-        alert(err.error || "Parsing failed");
-      }
-    } catch (e) {
+      const data = parseResumeText(text);
+      setParsedData(data);
+      toast.success("Resume parsed successfully!");
+    } catch (e: any) {
       console.error(e);
-      alert("Error parsing resume");
+      toast.error(e.message || "Error parsing resume");
     } finally {
       setIsParsing(false);
     }
   };
 
   const handleApplyToProfile = async () => {
-    if (!parsedData) return;
+    if (!parsedData || !user) {
+      toast.error("Please sign in as a student to save this profile.");
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const storedUserId = localStorage.getItem("current_user_id");
-      const sessRes = await fetch(
-        storedUserId ? `/api/auth/session?userId=${storedUserId}` : `/api/auth/session`
+      // Check existing profile
+      const existingProfile = await getStudentProfile(user.$id);
+
+      const skillNames = parsedData.skills.map((s) => s.skillName);
+
+      const student = await upsertStudentProfile(
+        user.$id,
+        {
+          institution: parsedData.university || existingProfile?.institution || "University",
+          degree: parsedData.degree || existingProfile?.degree || "Bachelor of Science",
+          gpa: parsedData.gpa ?? existingProfile?.gpa ?? 3.5,
+          skills: skillNames.length > 0 ? skillNames : existingProfile?.skills || ["Python"],
+          bio: parsedData.bio || existingProfile?.bio,
+          location: parsedData.location || existingProfile?.location,
+          graduationYear: parsedData.graduationYear || existingProfile?.graduationYear || 2025,
+          profileCompleteness: 85,
+        },
+        existingProfile?.$id
       );
-      const sessData = await sessRes.json();
-      const curUser = sessData.currentUser;
 
-      if (curUser && curUser.studentProfile) {
-        const res = await fetch(`/api/students/${curUser.studentProfile.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: parsedData.name,
-            bio: parsedData.bio,
-            location: parsedData.location,
-            gpa: parsedData.gpa,
-            university: parsedData.university,
-            degree: parsedData.degree,
-            graduationYear: parsedData.graduationYear,
-            yearsExperience: parsedData.yearsExperience,
-            skills: parsedData.skills,
-            educations: parsedData.educations,
-            experiences: parsedData.experiences,
-            projects: parsedData.projects,
-            certifications: parsedData.certifications,
-          }),
-        });
-
-        if (res.ok) {
-          setSaveSuccess(true);
-          setTimeout(() => {
-            router.push("/profile");
-          }, 1500);
+      // Create parsed experiences
+      if (parsedData.experiences && parsedData.experiences.length > 0) {
+        for (const exp of parsedData.experiences) {
+          try {
+            await createExperience(
+              {
+                studentProfileId: student.$id,
+                company: exp.company,
+                title: exp.title,
+                description: exp.description || undefined,
+              },
+              user.$id
+            );
+          } catch {
+            // skip duplicate
+          }
         }
       }
-    } catch (err) {
+
+      // Create parsed projects
+      if (parsedData.projects && parsedData.projects.length > 0) {
+        for (const proj of parsedData.projects) {
+          try {
+            await createProject(
+              {
+                studentProfileId: student.$id,
+                title: proj.title,
+                description: proj.description || undefined,
+              },
+              user.$id
+            );
+          } catch {
+            // skip duplicate
+          }
+        }
+      }
+
+      // Automatically recalculate matches for this candidate
+      await generateMatchesForStudent(student.$id);
+
+      setSaveSuccess(true);
+      toast.success("Profile updated and matches calculated!");
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1200);
+    } catch (err: any) {
       console.error("Save error:", err);
+      toast.error(err.message || "Failed to save profile.");
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-8 max-w-5xl mx-auto px-4 py-8">
       {/* Header */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border shadow-lg space-y-2">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-xs font-bold">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>AI Resume & CV Parser</span>
+      <div className="p-6 sm:p-8 rounded-2xl bg-card border shadow-sm space-y-2">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+          <Wand2 className="w-3.5 h-3.5" />
+          <span>Resume & CV Parser</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground">
           Import & Parse Your CV
         </h1>
-        <p className="text-xs sm:text-sm text-slate-500 max-w-2xl">
+        <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl">
           Paste your resume or load a sample to automatically extract structured education, GPA,
           skills with proficiency levels, experience, and projects. Review detected information before
           saving to your profile.
@@ -157,10 +193,10 @@ CERTIFICATIONS:
       {/* Main Grid: Input on Left, Detected Info & Review on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Input Textarea */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border space-y-4 shadow-xs">
+        <div className="p-6 rounded-2xl bg-card border space-y-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <FileText className="w-4 h-4 text-blue-600" />
+            <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" />
               <span>Resume Content</span>
             </h2>
             <button
@@ -168,7 +204,7 @@ CERTIFICATIONS:
                 setResumeText(sampleResume);
                 handleParse(sampleResume);
               }}
-              className="text-xs text-blue-600 hover:text-blue-700 font-bold hover:underline"
+              className="text-xs text-primary hover:underline font-semibold"
             >
               Fill Sample Resume
             </button>
@@ -179,28 +215,28 @@ CERTIFICATIONS:
             value={resumeText}
             onChange={(e) => setResumeText(e.target.value)}
             placeholder="Paste your plain text resume or CV content here..."
-            className="w-full p-3.5 rounded-2xl border bg-slate-50/50 dark:bg-slate-800 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-hidden leading-relaxed"
+            className="w-full p-3.5 rounded-xl border bg-muted/40 text-xs font-mono focus:ring-2 focus:ring-primary outline-none leading-relaxed"
           />
 
           <div className="flex items-center justify-between pt-2">
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] text-muted-foreground">
               {resumeText.length} characters
             </span>
             <button
               onClick={() => handleParse()}
               disabled={isParsing || !resumeText.trim()}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/25 transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold shadow-sm transition-all disabled:opacity-50"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{isParsing ? "Extracting Data..." : "Run AI Parser"}</span>
+              <Wand2 className="w-3.5 h-3.5" />
+              <span>{isParsing ? "Extracting Data..." : "Run Parser"}</span>
             </button>
           </div>
         </div>
 
         {/* Right: Detected Entities & Preview */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border space-y-4 shadow-xs flex flex-col justify-between">
+        <div className="p-6 rounded-2xl bg-card border space-y-4 shadow-xs flex flex-col justify-between">
           <div className="space-y-4">
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
               <Layers className="w-4 h-4 text-emerald-600" />
               <span>Detected Structured Information</span>
             </h2>
@@ -208,44 +244,44 @@ CERTIFICATIONS:
             {parsedData ? (
               <div className="space-y-4">
                 {/* Detected Badges Matrix */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
-                    <CheckCircle2 className="w-4 h-4" /> Name: {parsedData.name}
+                <div className="p-4 rounded-xl bg-muted/40 border grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center gap-1.5 text-emerald-600 font-medium">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" /> Name: {parsedData.name}
                   </div>
-                  <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
-                    <CheckCircle2 className="w-4 h-4" /> GPA: {parsedData.gpa || "3.62"}
+                  <div className="flex items-center gap-1.5 text-emerald-600 font-medium">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" /> GPA: {parsedData.gpa ?? "3.62"}
                   </div>
-                  <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
-                    <CheckCircle2 className="w-4 h-4" /> Degree: {parsedData.degree || "CS"}
+                  <div className="flex items-center gap-1.5 text-emerald-600 font-medium">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" /> Degree: {parsedData.degree || "CS"}
                   </div>
-                  <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
-                    <CheckCircle2 className="w-4 h-4" /> Skills: {parsedData.skills?.length || 0} found
+                  <div className="flex items-center gap-1.5 text-emerald-600 font-medium">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" /> Skills: {parsedData.skills?.length || 0} found
                   </div>
-                  <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
-                    <CheckCircle2 className="w-4 h-4" /> Exp: {parsedData.yearsExperience || 0} yrs
+                  <div className="flex items-center gap-1.5 text-emerald-600 font-medium">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" /> Exp: {parsedData.yearsExperience || 0} yrs
                   </div>
-                  <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
-                    <CheckCircle2 className="w-4 h-4" /> Projects: {parsedData.projects?.length || 0}
+                  <div className="flex items-center gap-1.5 text-emerald-600 font-medium">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" /> Projects: {parsedData.projects?.length || 0}
                   </div>
                 </div>
 
                 {/* Editable Preview Fields */}
                 <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    <label className="block text-[11px] font-bold text-muted-foreground mb-1">
                       Detected Full Name
                     </label>
                     <input
                       type="text"
                       value={parsedData.name}
                       onChange={(e) => setParsedData({ ...parsedData, name: e.target.value })}
-                      className="w-full px-3 py-1.5 rounded-lg border text-xs bg-white dark:bg-slate-800 font-bold"
+                      className="w-full px-3 py-1.5 rounded-lg border text-xs bg-background font-medium"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                      <label className="block text-[11px] font-bold text-muted-foreground mb-1">
                         Detected GPA
                       </label>
                       <input
@@ -255,35 +291,35 @@ CERTIFICATIONS:
                         onChange={(e) =>
                           setParsedData({ ...parsedData, gpa: parseFloat(e.target.value) })
                         }
-                        className="w-full px-3 py-1.5 rounded-lg border text-xs bg-white dark:bg-slate-800"
+                        className="w-full px-3 py-1.5 rounded-lg border text-xs bg-background"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                        Degree Discipline
+                      <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                        Detected University
                       </label>
                       <input
                         type="text"
-                        value={parsedData.degree || ""}
+                        value={parsedData.university || ""}
                         onChange={(e) =>
-                          setParsedData({ ...parsedData, degree: e.target.value })
+                          setParsedData({ ...parsedData, university: e.target.value })
                         }
-                        className="w-full px-3 py-1.5 rounded-lg border text-xs bg-white dark:bg-slate-800"
+                        className="w-full px-3 py-1.5 rounded-lg border text-xs bg-background"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                      Extracted Skills Matrix
+                    <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                      Detected Skills ({parsedData.skills?.length || 0})
                     </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {parsedData.skills?.map((sk: any, idx: number) => (
+                    <div className="flex flex-wrap gap-1">
+                      {parsedData.skills?.map((s, idx) => (
                         <span
                           key={idx}
-                          className="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[11px] font-semibold border border-blue-200"
+                          className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-semibold"
                         >
-                          {sk.skillName} ({sk.level})
+                          {s.skillName}
                         </span>
                       ))}
                     </div>
@@ -291,31 +327,34 @@ CERTIFICATIONS:
                 </div>
               </div>
             ) : (
-              <div className="text-center py-16 p-4 rounded-2xl border-2 border-dashed space-y-2 text-slate-400">
-                <FileUp className="w-8 h-8 mx-auto" />
-                <p className="text-xs font-semibold">
-                  No data extracted yet. Paste resume text and click "Run AI Parser" or use the sample.
+              <div className="text-center py-16 border border-dashed rounded-xl space-y-2">
+                <FileUp className="w-8 h-8 text-muted-foreground mx-auto" />
+                <p className="text-xs text-muted-foreground">
+                  Paste resume text on the left and run parser to see detected entities.
                 </p>
               </div>
             )}
           </div>
 
-          {/* Action Footer */}
           {parsedData && (
-            <div className="pt-4 border-t space-y-2">
+            <div className="pt-4 border-t">
               <button
                 onClick={handleApplyToProfile}
-                disabled={isSaving}
-                className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/25 transition-all disabled:opacity-50"
+                disabled={isSaving || saveSuccess}
+                className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
               >
-                <Save className="w-4 h-4" />
-                <span>{isSaving ? "Saving to Profile..." : "Approve & Update Profile"}</span>
+                {saveSuccess ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Applied & Synced to Dashboard!</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>{isSaving ? "Saving to Profile..." : "Apply & Save to Profile"}</span>
+                  </>
+                )}
               </button>
-              {saveSuccess && (
-                <p className="text-xs text-center text-emerald-600 font-bold animate-in fade-in">
-                  ✓ Profile successfully updated! Redirecting...
-                </p>
-              )}
             </div>
           )}
         </div>

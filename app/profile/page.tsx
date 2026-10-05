@@ -1,877 +1,1083 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   User,
   GraduationCap,
   Briefcase,
-  BookOpen,
+  Code,
+  Link as LinkIcon,
+  Save,
   Plus,
   Trash2,
-  Save,
-  CheckCircle2,
-  ExternalLink,
-  Github,
-  Linkedin,
-  Globe,
+  Upload,
+  Check,
+  X,
+  Phone,
+  Mail,
+  MessageCircle,
+  Edit2,
+  MapPin,
+  Building,
   Award,
-  HeartHandshake,
-  Languages as LanguagesIcon,
-  Shield,
-  FileUp,
-  Sparkles,
-  Layers,
+  FileText,
+  Image as ImageIcon,
+  ExternalLink
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
+import {
+  getStudentProfile,
+  upsertStudentProfile,
+  getExperiences,
+  createExperience,
+  deleteExperience,
+  getProjects,
+  createProject,
+  deleteProject,
+  uploadFile,
+  getFilePreviewUrl,
+  generateMatchesForStudent,
+} from "@/lib/database";
+import type { StudentProfile, Experience, Project } from "@/lib/types";
+import Image from "next/image";
 
-export default function StudentProfilePage() {
-  const [profile, setProfile] = useState<any>(null);
+// Auto-suggest lists for datalists
+const UNIVERSITIES_LIST = [
+  "UC Berkeley", "Stanford University", "Massachusetts Institute of Technology (MIT)", 
+  "Harvard University", "UCLA", "University of Toronto", "University of Oxford", 
+  "University of Cambridge", "National University of Sciences and Technology (NUST)", 
+  "Lahore University of Management Sciences (LUMS)", "University of Michigan"
+];
+
+const CITIES_LIST = [
+  "San Francisco, CA", "New York, NY", "London, UK", "Toronto, ON", "Austin, TX",
+  "Seattle, WA", "Chicago, IL", "Karachi, Pakistan", "Lahore, Pakistan", 
+  "Islamabad, Pakistan", "Dubai, UAE", "Berlin, Germany", "Singapore"
+];
+
+const SKILL_SUGGESTIONS = [
+  "Project Management", "Public Speaking", "Data Analysis", "Graphic Design",
+  "Digital Marketing", "Sales", "Accounting", "Financial Modeling", "Human Resources",
+  "Copywriting", "SEO", "Customer Service", "Business Development",
+  "JavaScript", "Python", "Excel", "Figma", "Research", "Event Planning"
+];
+
+export default function ProfilePage() {
+  const router = useRouter();
+  const { user, profile, loading: authLoading } = useAuth();
+
+  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
+  const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [savedSuccess, setSavedSuccess] = useState(false);
-  const [activeTab, setActiveTab] = useState("about");
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Form fields
+  const [location, setLocation] = useState("");
+  const [bio, setBio] = useState("");
+  const [institution, setInstitution] = useState("");
+  const [degree, setDegree] = useState("");
+  const [fieldOfStudy, setFieldOfStudy] = useState("");
+  const [graduationYear, setGraduationYear] = useState("");
+  const [gpa, setGpa] = useState("");
+  const [portfolioUrl, setPortfolioUrl] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [githubUrl, setGithubUrl] = useState("");
+  const [desiredRoleType, setDesiredRoleType] = useState("");
+  const [preferredIndustry, setPreferredIndustry] = useState("");
+  const [locationPreference, setLocationPreference] = useState("");
+  const [workMode, setWorkMode] = useState("any");
+
+  // Contact info
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+
+  // Skills
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [customSkill, setCustomSkill] = useState("");
+
+  // New experience form
+  const [newExpCompany, setNewExpCompany] = useState("");
+  const [newExpTitle, setNewExpTitle] = useState("");
+  const [newExpDesc, setNewExpDesc] = useState("");
+
+  // New project form
+  const [newProjTitle, setNewProjTitle] = useState("");
+  const [newProjDesc, setNewProjDesc] = useState("");
+  const [newProjTech, setNewProjTech] = useState("");
+  const [newProjUrl, setNewProjUrl] = useState("");
+  const [newProjThumbnail, setNewProjThumbnail] = useState<File | null>(null);
+  const [newProjImages, setNewProjImages] = useState<File[]>([]);
+
+  // Files
+  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [certFiles, setCertFiles] = useState<File[]>([]);
+  const [academicDocFiles, setAcademicDocFiles] = useState<File[]>([]);
 
   useEffect(() => {
-    const loadProfile = async () => {
-      setLoading(true);
-      try {
-        const storedUserId = localStorage.getItem("current_user_id");
-        const sessRes = await fetch(
-          storedUserId ? `/api/auth/session?userId=${storedUserId}` : `/api/auth/session`
-        );
-        const sessData = await sessRes.json();
-        const curUser = sessData.currentUser;
+    if (authLoading) return;
+    if (!user || !profile) {
+      router.push("/login");
+      return;
+    }
+    if (profile.role !== "student") {
+      router.push("/recruiter");
+      return;
+    }
+    loadProfileData();
+  }, [user, profile, authLoading]);
 
-        if (curUser && curUser.studentProfile) {
-          const res = await fetch(`/api/students/${curUser.studentProfile.id}`);
-          const data = await res.json();
-          setProfile(data);
-        }
-      } catch (err) {
-        console.error("Error loading profile:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadProfile();
-  }, []);
-
-  const handleSave = async () => {
-    if (!profile) return;
-    setSaving(true);
-    setSavedSuccess(false);
+  const loadProfileData = async () => {
+    if (!user) return;
+    setLoading(true);
     try {
-      const res = await fetch(`/api/students/${profile.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: profile.user?.name,
-          bio: profile.bio,
-          location: profile.location,
-          gpa: profile.gpa,
-          university: profile.university,
-          degree: profile.degree,
-          graduationYear: profile.graduationYear,
-          yearsExperience: profile.yearsExperience,
-          workAuthorization: profile.workAuthorization,
-          portfolioUrl: profile.portfolioUrl,
-          githubUrl: profile.githubUrl,
-          linkedinUrl: profile.linkedinUrl,
-          skills: profile.skills || [],
-          educations: profile.educations || [],
-          experiences: profile.experiences || [],
-          projects: profile.projects || [],
-          certifications: profile.certifications || [],
-          communityWork: profile.communityWork || [],
-          achievements: profile.achievements || [],
-          languages: profile.languages || [],
-        }),
-      });
+      const sp = await getStudentProfile(user.$id);
+      if (sp) {
+        setStudentProfile(sp);
+        setLocation(sp.location || "");
+        setBio(sp.bio || "");
+        setInstitution(sp.institution || "");
+        setDegree(sp.degree || "");
+        setFieldOfStudy(sp.fieldOfStudy || "");
+        setGraduationYear(sp.graduationYear?.toString() || "");
+        setGpa(sp.gpa?.toString() || "");
+        setSelectedSkills(sp.skills || []);
+        setPortfolioUrl(sp.portfolioUrl || "");
+        setLinkedinUrl(sp.linkedinUrl || "");
+        setGithubUrl(sp.githubUrl || "");
+        setDesiredRoleType(sp.desiredRoleType || "");
+        setPreferredIndustry(sp.preferredIndustry || "");
+        setLocationPreference(sp.locationPreference || "");
+        setWorkMode(sp.workMode || "any");
+        
+        setEmail(sp.email || "");
+        setPhone(sp.phone || "");
+        setWhatsapp(sp.whatsapp || "");
 
-      if (res.ok) {
-        const updated = await res.json();
-        setProfile(updated);
-        setSavedSuccess(true);
-        setTimeout(() => setSavedSuccess(false), 3000);
+        const exps = await getExperiences(sp.$id);
+        setExperiences(exps);
+        const projs = await getProjects(sp.$id);
+        setProjects(projs);
+      } else {
+        setIsEditing(true);
+        if (profile?.email) setEmail(profile.email);
       }
     } catch (err) {
-      console.error("Error saving profile:", err);
+      console.error("Error loading profile:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateCompleteness = () => {
+    let score = 0;
+    const total = 10;
+    if (institution) score++;
+    if (degree) score++;
+    if (fieldOfStudy) score++;
+    if (graduationYear) score++;
+    if (gpa) score++;
+    if (selectedSkills.length > 0) score++;
+    if (bio) score++;
+    if (location) score++;
+    if (experiences.length > 0) score++;
+    if (projects.length > 0) score++;
+    return Math.round((score / total) * 100);
+  };
+
+  const addCustomSkill = () => {
+    if (customSkill.trim() && !selectedSkills.includes(customSkill.trim())) {
+      setSelectedSkills([...selectedSkills, customSkill.trim()]);
+    }
+    setCustomSkill("");
+  };
+
+  const removeSkill = (skill: string) => {
+    setSelectedSkills(selectedSkills.filter(s => s !== skill));
+  };
+
+  const saveProfileData = async (showSuccessMessage = true): Promise<StudentProfile | null> => {
+    if (!user) return null;
+    setSaving(true);
+    try {
+      let profilePhotoFileId = studentProfile?.profilePhotoFileId;
+      if (profilePhoto) {
+        profilePhotoFileId = await uploadFile(profilePhoto);
+      }
+
+      let resumeFileId = studentProfile?.resumeFileId;
+      if (resumeFile) {
+        resumeFileId = await uploadFile(resumeFile);
+      }
+
+      const uploadedCerts = await Promise.all(certFiles.map(f => uploadFile(f)));
+      const certificationFileIds = [...(studentProfile?.certificationFileIds || []), ...uploadedCerts];
+
+      const uploadedDocs = await Promise.all(academicDocFiles.map(f => uploadFile(f)));
+      const academicDocFileIds = [...(studentProfile?.academicDocFileIds || []), ...uploadedDocs];
+
+      const completeness = calculateCompleteness();
+      const data: Partial<StudentProfile> = {
+        location,
+        bio,
+        institution,
+        degree,
+        fieldOfStudy,
+        graduationYear: graduationYear ? parseInt(graduationYear) : undefined,
+        gpa: gpa ? parseFloat(gpa) : undefined,
+        skills: selectedSkills,
+        profilePhotoFileId,
+        resumeFileId,
+        certificationFileIds,
+        academicDocFileIds,
+        portfolioUrl: portfolioUrl || undefined,
+        linkedinUrl: linkedinUrl || undefined,
+        githubUrl: githubUrl || undefined,
+        desiredRoleType,
+        preferredIndustry,
+        locationPreference,
+        workMode: workMode as any,
+        profileCompleteness: completeness,
+        email,
+        phone,
+        whatsapp,
+      };
+
+      const result = await upsertStudentProfile(user.$id, data, studentProfile?.$id);
+      setStudentProfile(result);
+
+      // Automatically recalculate matches against open roles
+      try {
+        await generateMatchesForStudent(result.$id);
+      } catch (matchErr) {
+        console.error("Match generation error:", matchErr);
+      }
+      
+      // Reset file inputs
+      setProfilePhoto(null);
+      setResumeFile(null);
+      setCertFiles([]);
+      setAcademicDocFiles([]);
+
+      if (showSuccessMessage) {
+        toast.success("Profile saved and matches updated!");
+        setIsEditing(false); // Return to view mode
+      }
+      return result;
+    } catch (err: any) {
+      if (showSuccessMessage) {
+        toast.error(err.message || "Failed to save profile.");
+      }
+      return null;
     } finally {
       setSaving(false);
     }
   };
 
-  // Helper mutation functions
-  const addSkill = () => {
-    const newSkill = { skillName: "", level: "Intermediate", yearsExperience: 1.0 };
-    setProfile({ ...profile, skills: [...(profile.skills || []), newSkill] });
-  };
-  const removeSkill = (index: number) => {
-    const updated = [...(profile.skills || [])];
-    updated.splice(index, 1);
-    setProfile({ ...profile, skills: updated });
+  const handleSave = () => saveProfileData(true);
+
+  const handleAddExperience = async () => {
+    if (!user || !newExpCompany || !newExpTitle) return;
+    
+    let currentProfile = studentProfile;
+    if (!currentProfile) {
+      currentProfile = await saveProfileData(false);
+      if (!currentProfile) {
+        toast.error("Please save your profile first before adding experiences.");
+        return;
+      }
+    }
+
+    try {
+      const exp = await createExperience(
+        { studentProfileId: currentProfile.$id, company: newExpCompany, title: newExpTitle, description: newExpDesc },
+        user.$id
+      );
+      setExperiences((prev) => [...prev, exp]);
+      setNewExpCompany("");
+      setNewExpTitle("");
+      setNewExpDesc("");
+      toast.success("Experience added!");
+    } catch (err) {
+      toast.error("Failed to add experience.");
+    }
   };
 
-  const addEducation = () => {
-    const newEdu = {
-      institution: "",
-      degree: "Bachelor of Science",
-      fieldOfStudy: "Computer Science",
-      gpa: 3.5,
-      startYear: 2021,
-      endYear: 2025,
-      isCurrent: true,
-      courses: "",
-    };
-    setProfile({ ...profile, educations: [...(profile.educations || []), newEdu] });
-  };
-  const removeEducation = (index: number) => {
-    const updated = [...(profile.educations || [])];
-    updated.splice(index, 1);
-    setProfile({ ...profile, educations: updated });
+  const handleDeleteExperience = async (id: string) => {
+    await deleteExperience(id);
+    setExperiences((prev) => prev.filter((e) => e.$id !== id));
+    toast.success("Experience deleted.");
   };
 
-  const addExperience = () => {
-    const newExp = {
-      title: "",
-      company: "",
-      location: "",
-      type: "Full-time",
-      startDate: "2023-01",
-      endDate: "",
-      isCurrent: true,
-      description: "",
-      years: 1.0,
-      months: 0,
-    };
-    setProfile({ ...profile, experiences: [...(profile.experiences || []), newExp] });
-  };
-  const removeExperience = (index: number) => {
-    const updated = [...(profile.experiences || [])];
-    updated.splice(index, 1);
-    setProfile({ ...profile, experiences: updated });
+  const handleAddProject = async () => {
+    if (!user || !newProjTitle) return;
+
+    let currentProfile = studentProfile;
+    if (!currentProfile) {
+      currentProfile = await saveProfileData(false);
+      if (!currentProfile) {
+        toast.error("Please save your profile first before adding projects.");
+        return;
+      }
+    }
+
+    try {
+      let thumbnailFileId;
+      if (newProjThumbnail) thumbnailFileId = await uploadFile(newProjThumbnail);
+
+      const imageFileIds = await Promise.all(newProjImages.map(f => uploadFile(f)));
+
+      const proj = await createProject(
+        {
+          studentProfileId: currentProfile.$id,
+          title: newProjTitle,
+          description: newProjDesc,
+          techUsed: newProjTech.split(",").map((t) => t.trim()).filter(Boolean),
+          projectUrl: newProjUrl || undefined,
+          thumbnailFileId,
+          imageFileIds
+        },
+        user.$id
+      );
+      
+      setProjects((prev) => [...prev, proj]);
+      setNewProjTitle("");
+      setNewProjDesc("");
+      setNewProjTech("");
+      setNewProjUrl("");
+      setNewProjThumbnail(null);
+      setNewProjImages([]);
+      
+      toast.success("Project added!");
+    } catch (err) {
+      toast.error("Failed to add project.");
+    }
   };
 
-  const addProject = () => {
-    const newProj = { title: "", description: "", technologies: "" };
-    setProfile({ ...profile, projects: [...(profile.projects || []), newProj] });
-  };
-  const removeProject = (index: number) => {
-    const updated = [...(profile.projects || [])];
-    updated.splice(index, 1);
-    setProfile({ ...profile, projects: updated });
+  const handleDeleteProject = async (id: string) => {
+    await deleteProject(id);
+    setProjects((prev) => prev.filter((p) => p.$id !== id));
+    toast.success("Project deleted.");
   };
 
-  const addCertification = () => {
-    const newCert = { name: "", issuer: "" };
-    setProfile({ ...profile, certifications: [...(profile.certifications || []), newCert] });
-  };
-  const removeCertification = (index: number) => {
-    const updated = [...(profile.certifications || [])];
-    updated.splice(index, 1);
-    setProfile({ ...profile, certifications: updated });
-  };
-
-  if (loading) {
+  if (authLoading || loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-2 border-border border-t-primary rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-muted-foreground">Loading profile...</p>
+        </div>
       </div>
     );
   }
 
-  if (!profile) {
-    return <div className="text-center py-12">No student profile active.</div>;
-  }
+  const completeness = calculateCompleteness();
 
-  const tabs = [
-    { id: "about", label: "About & Basic", icon: User },
-    { id: "education", label: "Education & GPA", icon: GraduationCap },
-    { id: "skills", label: "Skills Matrix", icon: Layers },
-    { id: "experience", label: "Experience", icon: Briefcase },
-    { id: "projects", label: "Projects", icon: BookOpen },
-    { id: "certifications", label: "Certifications & Honors", icon: Award },
-    { id: "community", label: "Community & Languages", icon: HeartHandshake },
-  ];
-
-  return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Header Profile Card */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border shadow-lg relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-tr from-blue-600 to-indigo-600 border-2 border-white dark:border-slate-800 shadow-md flex items-center justify-center text-white text-2xl font-bold">
-              {profile.user?.avatar ? (
-                <img
-                  src={profile.user.avatar}
-                  alt={profile.user.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                profile.user?.name?.charAt(0) || "U"
-              )}
-            </div>
-            <div>
-              <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">
-                {profile.user?.name || "Student Name"}
-              </h1>
-              <p className="text-xs text-slate-500 font-medium">
-                {profile.degree || "Major"} · {profile.university || "University"}
-              </p>
-              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-400 mt-2 font-medium">
-                <span className="px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-semibold border border-blue-100 dark:border-blue-900">
-                  GPA: {profile.gpa ? profile.gpa.toFixed(2) : "N/A"}
-                </span>
-                <span>{profile.location || "Pakistan"}</span>
-                <span>•</span>
-                <span>{profile.yearsExperience || 0} yrs experience</span>
+  // ─── READ-ONLY VIEW MODE ────────────────────────────────────────────────────────
+  if (!isEditing) {
+    return (
+      <div className="max-w-[1000px] mx-auto px-6 sm:px-10 py-8 space-y-8">
+        {/* Profile Header section */}
+        <div className="editorial-card relative overflow-hidden">
+          <div className="h-32 bg-primary/10 w-full absolute top-0 left-0"></div>
+          <div className="px-8 pb-8 pt-20 relative flex flex-col md:flex-row items-center md:items-end justify-between gap-6">
+            <div className="flex flex-col md:flex-row items-center md:items-end gap-6 text-center md:text-left">
+              <div className="w-32 h-32 rounded-full border-4 border-background bg-muted overflow-hidden flex items-center justify-center relative shadow-sm">
+                {studentProfile?.profilePhotoFileId ? (
+                  <Image src={getFilePreviewUrl(studentProfile.profilePhotoFileId)} alt="Profile" fill style={{ objectFit: "cover" }} />
+                ) : (
+                  <User className="w-12 h-12 text-muted-foreground" />
+                )}
+              </div>
+              <div className="mb-2">
+                <h1 className="text-3xl font-display font-semibold text-foreground">
+                  {profile?.name || "Your Profile"}
+                </h1>
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm text-muted-foreground mt-2">
+                  {location && (
+                    <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{location}</span>
+                  )}
+                  {degree && institution && (
+                    <span className="flex items-center gap-1.5"><GraduationCap className="w-3.5 h-3.5" />{degree} at {institution}</span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-            <Link
-              href="/profile/import"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-colors"
+            
+            <Button
+              onClick={() => setIsEditing(true)}
+              className="bg-primary text-primary-foreground hover:bg-[var(--color-primary-hover)] font-semibold text-sm rounded-md shadow-none mb-2"
             >
-              <FileUp className="w-3.5 h-3.5 text-blue-600" />
-              <span>Import CV / Resume</span>
-            </Link>
-
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/25 transition-all disabled:opacity-50"
-            >
-              <Save className="w-3.5 h-3.5" />
-              <span>{saving ? "Saving..." : "Save Profile"}</span>
-            </button>
+              <Edit2 className="w-4 h-4 mr-2" />
+              Edit Profile
+            </Button>
           </div>
         </div>
 
-        {savedSuccess && (
-          <div className="mt-4 p-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            Profile updated successfully and profile completeness score recalculated!
+        {completeness < 100 && (
+          <div className="editorial-card p-4 border-l-4 border-l-primary/60">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-foreground">Complete Your Profile</span>
+              <span className="text-sm font-semibold text-primary">{completeness}%</span>
+            </div>
+            <Progress value={completeness} className="h-1.5 mb-2" />
+            <p className="text-xs text-muted-foreground">Recruiters are more likely to notice fully completed profiles.</p>
           </div>
         )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 space-y-6">
+            {/* About */}
+            <div className="editorial-card p-6 space-y-3">
+              <h2 className="text-lg font-display font-semibold">About</h2>
+              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                {bio || <span className="text-muted-foreground italic">No bio provided.</span>}
+              </p>
+            </div>
+
+            {/* Experience */}
+            <div className="editorial-card p-6 space-y-4">
+              <h2 className="text-lg font-display font-semibold">Experience</h2>
+              {experiences.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">No experiences added.</p>
+              ) : (
+                <div className="space-y-4">
+                  {experiences.map((exp, idx) => (
+                    <div key={exp.$id} className={idx !== 0 ? "pt-4 border-t border-border" : ""}>
+                      <h3 className="text-base font-semibold text-foreground">{exp.title}</h3>
+                      <p className="text-sm text-primary font-medium">{exp.company}</p>
+                      {exp.description && <p className="text-sm text-muted-foreground mt-2">{exp.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Projects */}
+            <div className="editorial-card p-6 space-y-4">
+              <h2 className="text-lg font-display font-semibold">Projects & Portfolio</h2>
+              {projects.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">No projects added.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {projects.map((proj) => (
+                    <div key={proj.$id} className="border border-border rounded-md overflow-hidden bg-muted/30 flex flex-col">
+                      {proj.thumbnailFileId ? (
+                        <div className="w-full h-32 bg-muted relative">
+                          <Image src={getFilePreviewUrl(proj.thumbnailFileId)} alt={proj.title} fill style={{ objectFit: "cover" }} />
+                        </div>
+                      ) : (
+                        <div className="w-full h-20 bg-muted flex items-center justify-center">
+                          <Code className="w-8 h-8 text-muted-foreground/30" />
+                        </div>
+                      )}
+                      <div className="p-4 flex-1 flex flex-col">
+                        <h3 className="text-base font-semibold text-foreground line-clamp-1">{proj.title}</h3>
+                        {proj.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2 flex-1">{proj.description}</p>}
+                        
+                        <div className="mt-3 space-y-3">
+                          {proj.techUsed && proj.techUsed.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {proj.techUsed.slice(0, 3).map((t) => (
+                                <span key={t} className="px-1.5 py-0.5 rounded border border-border text-[10px] font-medium text-muted-foreground">{t}</span>
+                              ))}
+                              {proj.techUsed.length > 3 && <span className="text-[10px] text-muted-foreground">+{proj.techUsed.length - 3}</span>}
+                            </div>
+                          )}
+                          
+                          {(proj.projectUrl || proj.githubUrl) && (
+                            <div className="flex items-center gap-3 pt-2 border-t border-border/50">
+                              {proj.projectUrl && (
+                                <a href={proj.projectUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                                  <ExternalLink className="w-3 h-3" /> Live Demo
+                                </a>
+                              )}
+                              {proj.githubUrl && (
+                                <a href={proj.githubUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                                  <Code className="w-3 h-3" /> Source
+                                </a>
+                              )}
+                            </div>
+                          )}
+
+                          {proj.imageFileIds && proj.imageFileIds.length > 0 && (
+                            <div className="flex items-center gap-1 pt-2">
+                              <ImageIcon className="w-3 h-3 text-muted-foreground" />
+                              <span className="text-[10px] text-muted-foreground">{proj.imageFileIds.length} attached images</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Documents & Certifications */}
+            <div className="editorial-card p-6 space-y-4">
+              <h2 className="text-lg font-display font-semibold">Documents & Certifications</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Certifications</h3>
+                  {studentProfile?.certificationFileIds && studentProfile.certificationFileIds.length > 0 ? (
+                    <div className="space-y-2">
+                      {studentProfile.certificationFileIds.map((id, idx) => (
+                        <a key={id} href={getFilePreviewUrl(id)} target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 rounded-md border border-border hover:bg-muted transition-colors text-sm">
+                          <Award className="w-4 h-4 text-primary shrink-0" />
+                          <span className="truncate">Certification Document {idx + 1}</span>
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">None uploaded.</p>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Academic Docs</h3>
+                  {studentProfile?.academicDocFileIds && studentProfile.academicDocFileIds.length > 0 ? (
+                    <div className="space-y-2">
+                      {studentProfile.academicDocFileIds.map((id, idx) => (
+                        <a key={id} href={getFilePreviewUrl(id)} target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 rounded-md border border-border hover:bg-muted transition-colors text-sm">
+                          <FileText className="w-4 h-4 text-primary shrink-0" />
+                          <span className="truncate">Academic Record {idx + 1}</span>
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">None uploaded.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="md:col-span-1 space-y-6">
+            {/* Contact & Links */}
+            <div className="editorial-card p-6 space-y-4">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Contact & Links</h2>
+              <div className="space-y-3 text-sm">
+                {email && <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-primary" /><span className="truncate">{email}</span></div>}
+                {phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary" /><span>{phone}</span></div>}
+                {whatsapp && <div className="flex items-center gap-2"><MessageCircle className="w-4 h-4 text-primary" /><span>{whatsapp}</span></div>}
+                {linkedinUrl && <div className="flex items-center gap-2"><LinkIcon className="w-4 h-4 text-primary" /><a href={linkedinUrl} target="_blank" rel="noreferrer" className="hover:underline truncate">{linkedinUrl.replace(/^https?:\/\//,'')}</a></div>}
+                {githubUrl && <div className="flex items-center gap-2"><LinkIcon className="w-4 h-4 text-primary" /><a href={githubUrl} target="_blank" rel="noreferrer" className="hover:underline truncate">{githubUrl.replace(/^https?:\/\//,'')}</a></div>}
+                {portfolioUrl && <div className="flex items-center gap-2"><LinkIcon className="w-4 h-4 text-primary" /><a href={portfolioUrl} target="_blank" rel="noreferrer" className="hover:underline truncate">Portfolio Website</a></div>}
+                {studentProfile?.resumeFileId && (
+                  <div className="flex items-center gap-2 pt-2 border-t border-border mt-2">
+                    <FileText className="w-4 h-4 text-primary" />
+                    <a href={getFilePreviewUrl(studentProfile.resumeFileId)} target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium">Download Resume</a>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Skills */}
+            <div className="editorial-card p-6 space-y-4">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Skills</h2>
+              {selectedSkills.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">No skills listed.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {selectedSkills.map(s => (
+                    <span key={s} className="px-2.5 py-1 rounded-md bg-muted text-xs font-medium border border-border">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Preferences */}
+            <div className="editorial-card p-6 space-y-4">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Preferences</h2>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground block text-xs mb-0.5">Role Type</span>
+                  <span className="font-medium">{desiredRoleType || "-"}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-xs mb-0.5">Industry</span>
+                  <span className="font-medium">{preferredIndustry || "-"}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-xs mb-0.5">Location Pref.</span>
+                  <span className="font-medium">{locationPreference || "-"} ({workMode})</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── EDIT MODE ────────────────────────────────────────────────────────────────
+  return (
+    <div className="max-w-[900px] mx-auto px-6 sm:px-10 py-8 space-y-6">
+      {/* Hidden Datalists for Autocomplete */}
+      <datalist id="universities">
+        {UNIVERSITIES_LIST.map(u => <option key={u} value={u} />)}
+      </datalist>
+      <datalist id="cities">
+        {CITIES_LIST.map(c => <option key={c} value={c} />)}
+      </datalist>
+      <datalist id="skill-suggestions">
+        {SKILL_SUGGESTIONS.map(s => <option key={s} value={s} />)}
+      </datalist>
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-display font-semibold text-foreground">
+            Edit Profile
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Update your information below.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setIsEditing(false)}
+            variant="outline"
+            className="font-semibold text-sm rounded-md"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-primary text-primary-foreground hover:bg-[var(--color-primary-hover)] font-semibold text-sm rounded-md"
+          >
+            <Save className="w-4 h-4 mr-1.5" />
+            {saving ? "Saving..." : "Save Profile"}
+          </Button>
+        </div>
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                isActive
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "bg-white dark:bg-slate-900 border text-slate-600 dark:text-slate-300 hover:bg-slate-50"
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+      {/* ─── Profile Media ─── */}
+      <div className="editorial-card p-6 space-y-4">
+        <div className="flex items-center gap-2 text-foreground">
+          <ImageIcon className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-display font-semibold">Profile Photo & Resume</h2>
+        </div>
+        <Separator />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="text-xs">Profile Photo</Label>
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-muted border overflow-hidden shrink-0 flex items-center justify-center relative">
+                {profilePhoto ? (
+                  <img src={URL.createObjectURL(profilePhoto)} alt="Preview" className="w-full h-full object-cover" />
+                ) : studentProfile?.profilePhotoFileId ? (
+                  <Image src={getFilePreviewUrl(studentProfile.profilePhotoFileId)} alt="Existing" fill style={{ objectFit: "cover" }} />
+                ) : (
+                  <User className="w-6 h-6 text-muted-foreground" />
+                )}
+              </div>
+              <Input type="file" accept="image/*" onChange={(e) => setProfilePhoto(e.target.files?.[0] || null)} className="text-xs h-9" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Resume (PDF)</Label>
+            <Input type="file" accept=".pdf,.doc,.docx" onChange={(e) => setResumeFile(e.target.files?.[0] || null)} className="text-xs h-9" />
+            {studentProfile?.resumeFileId && !resumeFile && (
+              <p className="text-[10px] text-muted-foreground">A resume is already uploaded.</p>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Tab 1: About & Basic Info */}
-      {activeTab === "about" && (
-        <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border space-y-6">
-          <h3 className="text-base font-bold text-slate-900 dark:text-white">
-            Personal & Career Summary
-          </h3>
+      {/* ─── Basic Info & Contact ─── */}
+      <div className="editorial-card p-6 space-y-4">
+        <div className="flex items-center gap-2 text-foreground">
+          <User className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-display font-semibold">Basic Info & Contact</h2>
+        </div>
+        <Separator />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Location</Label>
+            <Input 
+              list="cities" 
+              value={location} 
+              onChange={(e) => setLocation(e.target.value)} 
+              placeholder="San Francisco, CA" 
+              className="rounded-md" 
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Email (Optional)</Label>
+            <div className="relative">
+              <Mail className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                placeholder="you@example.com" 
+                className="pl-8 rounded-md" 
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Phone Number (Optional)</Label>
+            <div className="relative">
+              <Phone className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input 
+                value={phone} 
+                onChange={(e) => setPhone(e.target.value)} 
+                placeholder="+1 (555) 000-0000" 
+                className="pl-8 rounded-md" 
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">WhatsApp (Optional)</Label>
+            <div className="relative">
+              <MessageCircle className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input 
+                value={whatsapp} 
+                onChange={(e) => setWhatsapp(e.target.value)} 
+                placeholder="+1 (555) 000-0000" 
+                className="pl-8 rounded-md" 
+              />
+            </div>
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Bio</Label>
+          <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell recruiters about yourself..." className="rounded-md" rows={3} />
+        </div>
+      </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Full Name
-              </label>
-              <input
-                type="text"
-                value={profile.user?.name || ""}
-                onChange={(e) =>
-                  setProfile({
-                    ...profile,
-                    user: { ...profile.user, name: e.target.value },
-                  })
+      {/* ─── Education & Documents ─── */}
+      <div className="editorial-card p-6 space-y-4">
+        <div className="flex items-center gap-2 text-foreground">
+          <GraduationCap className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-display font-semibold">Education & Documents</h2>
+        </div>
+        <Separator />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Institution</Label>
+            <Input 
+              list="universities"
+              value={institution} 
+              onChange={(e) => setInstitution(e.target.value)} 
+              placeholder="UC Berkeley" 
+              className="rounded-md" 
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Degree</Label>
+            <Input value={degree} onChange={(e) => setDegree(e.target.value)} placeholder="B.S., B.A., MBA..." className="rounded-md" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Field of Study</Label>
+            <Input value={fieldOfStudy} onChange={(e) => setFieldOfStudy(e.target.value)} placeholder="Business, Computer Science, Design..." className="rounded-md" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Graduation Year</Label>
+            <Input value={graduationYear} onChange={(e) => setGraduationYear(e.target.value)} placeholder="2025" type="number" className="rounded-md" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">GPA</Label>
+            <Input value={gpa} onChange={(e) => setGpa(e.target.value)} placeholder="3.8" type="number" step="0.01" className="rounded-md" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-border">
+          <div className="space-y-2">
+            <Label className="text-xs">Add Certifications</Label>
+            <Input 
+              type="file" 
+              multiple 
+              onChange={(e) => setCertFiles(Array.from(e.target.files || []))} 
+              className="text-xs h-9" 
+            />
+            {studentProfile?.certificationFileIds && studentProfile.certificationFileIds.length > 0 && (
+              <p className="text-[10px] text-muted-foreground">{studentProfile.certificationFileIds.length} certification(s) already uploaded.</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Add Academic Docs (Transcripts, etc)</Label>
+            <Input 
+              type="file" 
+              multiple 
+              onChange={(e) => setAcademicDocFiles(Array.from(e.target.files || []))} 
+              className="text-xs h-9" 
+            />
+            {studentProfile?.academicDocFileIds && studentProfile.academicDocFileIds.length > 0 && (
+              <p className="text-[10px] text-muted-foreground">{studentProfile.academicDocFileIds.length} document(s) already uploaded.</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Skills ─── */}
+      <div className="editorial-card p-6 space-y-4">
+        <div className="flex items-center gap-2 text-foreground">
+          <Code className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-display font-semibold">Skills</h2>
+        </div>
+        <Separator />
+        
+        <div className="space-y-3">
+          <Label className="text-xs">Add Your Skills</Label>
+          <div className="flex gap-2">
+            <Input 
+              list="skill-suggestions"
+              value={customSkill}
+              onChange={(e) => setCustomSkill(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addCustomSkill();
                 }
-                className="w-full px-3.5 py-2 rounded-xl border bg-slate-50/50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Professional Bio / Career Objective
-              </label>
-              <textarea
-                rows={4}
-                value={profile.bio || ""}
-                onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                placeholder="Describe your background, technical interests, and goals..."
-                className="w-full px-3.5 py-2 rounded-xl border bg-slate-50/50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Location
-                </label>
-                <input
-                  type="text"
-                  value={profile.location || ""}
-                  onChange={(e) => setProfile({ ...profile, location: e.target.value })}
-                  placeholder="e.g. Islamabad, Pakistan"
-                  className="w-full px-3.5 py-2 rounded-xl border bg-slate-50/50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Work Authorization
-                </label>
-                <input
-                  type="text"
-                  value={profile.workAuthorization || ""}
-                  onChange={(e) =>
-                    setProfile({ ...profile, workAuthorization: e.target.value })
-                  }
-                  placeholder="e.g. Pakistan, Remote"
-                  className="w-full px-3.5 py-2 rounded-xl border bg-slate-50/50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  GitHub Profile URL
-                </label>
-                <input
-                  type="text"
-                  value={profile.githubUrl || ""}
-                  onChange={(e) => setProfile({ ...profile, githubUrl: e.target.value })}
-                  placeholder="https://github.com/..."
-                  className="w-full px-3.5 py-2 rounded-xl border bg-slate-50/50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  LinkedIn Profile URL
-                </label>
-                <input
-                  type="text"
-                  value={profile.linkedinUrl || ""}
-                  onChange={(e) => setProfile({ ...profile, linkedinUrl: e.target.value })}
-                  placeholder="https://linkedin.com/in/..."
-                  className="w-full px-3.5 py-2 rounded-xl border bg-slate-50/50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Portfolio / Website
-                </label>
-                <input
-                  type="text"
-                  value={profile.portfolioUrl || ""}
-                  onChange={(e) => setProfile({ ...profile, portfolioUrl: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full px-3.5 py-2 rounded-xl border bg-slate-50/50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden"
-                />
-              </div>
-            </div>
+              }}
+              placeholder="E.g. Marketing, Python, Public Speaking..." 
+              className="rounded-md max-w-sm"
+            />
+            <Button type="button" onClick={addCustomSkill} variant="outline" className="shrink-0 rounded-md">
+              <Plus className="w-4 h-4 mr-1" /> Add Skill
+            </Button>
           </div>
         </div>
-      )}
 
-      {/* Tab 2: Education & GPA */}
-      {activeTab === "education" && (
-        <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Education & Academic Records
-              </h3>
-              <p className="text-xs text-slate-500">
-                GPA and degree disciplines are strictly validated during Stage 1 Hard Eligibility checks.
-              </p>
-            </div>
-            <button
-              onClick={addEducation}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600 text-xs font-bold hover:bg-blue-100 transition-colors"
+        <div className="flex flex-wrap gap-2 pt-2">
+          {selectedSkills.map((skill) => (
+            <span
+              key={skill}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground border border-primary"
             >
-              <Plus className="w-3.5 h-3.5" /> Add Degree
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-2xl bg-blue-50/40 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Primary Cumulative GPA (0.00 - 4.00)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                max="4"
-                value={profile.gpa || ""}
-                onChange={(e) => setProfile({ ...profile, gpa: parseFloat(e.target.value) || null })}
-                className="w-full px-3.5 py-2 rounded-xl border bg-white dark:bg-slate-800 text-sm font-bold text-blue-600 focus:ring-2 focus:ring-blue-500 outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Primary Degree Title
-              </label>
-              <input
-                type="text"
-                value={profile.degree || ""}
-                onChange={(e) => setProfile({ ...profile, degree: e.target.value })}
-                placeholder="e.g. BS Computer Science"
-                className="w-full px-3.5 py-2 rounded-xl border bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                University / Institution
-              </label>
-              <input
-                type="text"
-                value={profile.university || ""}
-                onChange={(e) => setProfile({ ...profile, university: e.target.value })}
-                placeholder="e.g. NUST Islamabad"
-                className="w-full px-3.5 py-2 rounded-xl border bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-4 pt-2">
-            {profile.educations?.map((edu: any, index: number) => (
-              <div key={index} className="p-4 rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                    Degree Record #{index + 1}
-                  </span>
-                  <button
-                    onClick={() => removeEducation(index)}
-                    className="text-rose-500 hover:text-rose-700 p-1 text-xs"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    value={edu.institution}
-                    onChange={(e) => {
-                      const updated = [...profile.educations];
-                      updated[index].institution = e.target.value;
-                      setProfile({ ...profile, educations: updated });
-                    }}
-                    placeholder="Institution / University"
-                    className="px-3 py-1.5 rounded-xl border text-xs bg-white dark:bg-slate-800"
-                  />
-                  <input
-                    type="text"
-                    value={edu.fieldOfStudy}
-                    onChange={(e) => {
-                      const updated = [...profile.educations];
-                      updated[index].fieldOfStudy = e.target.value;
-                      setProfile({ ...profile, educations: updated });
-                    }}
-                    placeholder="Field of Study (e.g. Computer Science)"
-                    className="px-3 py-1.5 rounded-xl border text-xs bg-white dark:bg-slate-800"
-                  />
-                </div>
-
-                <input
-                  type="text"
-                  value={edu.courses || ""}
-                  onChange={(e) => {
-                    const updated = [...profile.educations];
-                    updated[index].courses = e.target.value;
-                    setProfile({ ...profile, educations: updated });
-                  }}
-                  placeholder="Key relevant coursework (e.g. Deep Learning, Data Structures, Algorithms)"
-                  className="w-full px-3 py-1.5 rounded-xl border text-xs bg-white dark:bg-slate-800"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Tab 3: Skills Matrix */}
-      {activeTab === "skills" && (
-        <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Technical & Professional Skills
-              </h3>
-              <p className="text-xs text-slate-500">
-                Specify proficiency levels (Beginner, Intermediate, Advanced, Expert) for accurate match rank.
-              </p>
-            </div>
-            <button
-              onClick={addSkill}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600 text-xs font-bold hover:bg-blue-100 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Skill
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {profile.skills?.map((sk: any, index: number) => (
-              <div
-                key={index}
-                className="p-3 rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 space-y-2"
+              {skill}
+              <button 
+                onClick={() => removeSkill(skill)}
+                className="hover:bg-primary-foreground/20 rounded-full p-0.5 transition-colors"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <input
-                    type="text"
-                    value={sk.skillName}
-                    onChange={(e) => {
-                      const updated = [...profile.skills];
-                      updated[index].skillName = e.target.value;
-                      setProfile({ ...profile, skills: updated });
-                    }}
-                    placeholder="e.g. Python, PyTorch"
-                    className="w-full px-2.5 py-1 rounded-lg border text-xs font-bold bg-white dark:bg-slate-800"
-                  />
-                  <button
-                    onClick={() => removeSkill(index)}
-                    className="text-rose-500 hover:text-rose-700 p-1"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <select
-                    value={sk.level}
-                    onChange={(e) => {
-                      const updated = [...profile.skills];
-                      updated[index].level = e.target.value;
-                      setProfile({ ...profile, skills: updated });
-                    }}
-                    className="w-full px-2 py-1 rounded-lg border text-xs bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-300"
-                  >
-                    <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Advanced">Advanced</option>
-                    <option value="Expert">Expert</option>
-                  </select>
-
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={sk.yearsExperience || 1}
-                    onChange={(e) => {
-                      const updated = [...profile.skills];
-                      updated[index].yearsExperience = parseFloat(e.target.value) || 1;
-                      setProfile({ ...profile, skills: updated });
-                    }}
-                    title="Years of experience"
-                    className="w-16 px-2 py-1 rounded-lg border text-xs text-center bg-white dark:bg-slate-800"
-                  />
-                  <span className="text-[10px] text-slate-400">yrs</span>
-                </div>
-              </div>
-            ))}
-          </div>
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+          {selectedSkills.length === 0 && (
+            <p className="text-xs text-muted-foreground italic">No skills added yet.</p>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Tab 4: Experience */}
-      {activeTab === "experience" && (
-        <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border space-y-6">
-          <div className="flex items-center justify-between">
+      {/* ─── Experience ─── */}
+      <div className="editorial-card p-6 space-y-4">
+        <div className="flex items-center gap-2 text-foreground">
+          <Briefcase className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-display font-semibold">Experience</h2>
+        </div>
+        <Separator />
+
+        {experiences.map((exp) => (
+          <div key={exp.$id} className="flex items-start justify-between p-3 rounded-md bg-muted">
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Work & Internship Experience
-              </h3>
-              <p className="text-xs text-slate-500">
-                Total professional experience is compared against opportunity requirements.
-              </p>
+              <p className="text-sm font-semibold text-foreground">{exp.title}</p>
+              <p className="text-xs text-muted-foreground">{exp.company}</p>
+              {exp.description && <p className="text-xs text-muted-foreground mt-1">{exp.description}</p>}
             </div>
-            <button
-              onClick={addExperience}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600 text-xs font-bold hover:bg-blue-100 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Experience
+            <button onClick={() => handleDeleteExperience(exp.$id)} className="text-muted-foreground hover:text-destructive transition-colors">
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
+        ))}
 
-          <div className="space-y-4">
-            {profile.experiences?.map((exp: any, index: number) => (
-              <div
-                key={index}
-                className="p-4 rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 space-y-3"
-              >
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                    Experience #{index + 1}
-                  </span>
-                  <button
-                    onClick={() => removeExperience(index)}
-                    className="text-rose-500 hover:text-rose-700 p-1"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <input
-                    type="text"
-                    value={exp.title}
-                    onChange={(e) => {
-                      const updated = [...profile.experiences];
-                      updated[index].title = e.target.value;
-                      setProfile({ ...profile, experiences: updated });
-                    }}
-                    placeholder="Job Title (e.g. AI Engineering Intern)"
-                    className="px-3 py-1.5 rounded-xl border text-xs bg-white dark:bg-slate-800 font-bold"
-                  />
-                  <input
-                    type="text"
-                    value={exp.company}
-                    onChange={(e) => {
-                      const updated = [...profile.experiences];
-                      updated[index].company = e.target.value;
-                      setProfile({ ...profile, experiences: updated });
-                    }}
-                    placeholder="Company / Organization"
-                    className="px-3 py-1.5 rounded-xl border text-xs bg-white dark:bg-slate-800"
-                  />
-                  <input
-                    type="text"
-                    value={exp.type || "Full-time"}
-                    onChange={(e) => {
-                      const updated = [...profile.experiences];
-                      updated[index].type = e.target.value;
-                      setProfile({ ...profile, experiences: updated });
-                    }}
-                    placeholder="Type (Internship, Full-time)"
-                    className="px-3 py-1.5 rounded-xl border text-xs bg-white dark:bg-slate-800"
-                  />
-                </div>
-
-                <textarea
-                  rows={2}
-                  value={exp.description || ""}
-                  onChange={(e) => {
-                    const updated = [...profile.experiences];
-                    updated[index].description = e.target.value;
-                    setProfile({ ...profile, experiences: updated });
-                  }}
-                  placeholder="Key contributions and achievements..."
-                  className="w-full px-3 py-1.5 rounded-xl border text-xs bg-white dark:bg-slate-800"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Tab 5: Projects */}
-      {activeTab === "projects" && (
-        <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Technical Projects & Portfolio
-              </h3>
-              <p className="text-xs text-slate-500">
-                Projects enrich the normalized semantic embedding document.
-              </p>
-            </div>
-            <button
-              onClick={addProject}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600 text-xs font-bold hover:bg-blue-100 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Project
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {profile.projects?.map((p: any, index: number) => (
-              <div
-                key={index}
-                className="p-4 rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 space-y-3"
-              >
-                <div className="flex justify-between items-center">
-                  <input
-                    type="text"
-                    value={p.title}
-                    onChange={(e) => {
-                      const updated = [...profile.projects];
-                      updated[index].title = e.target.value;
-                      setProfile({ ...profile, projects: updated });
-                    }}
-                    placeholder="Project Title"
-                    className="w-full sm:w-1/2 px-3 py-1.5 rounded-xl border text-xs font-bold bg-white dark:bg-slate-800"
-                  />
-                  <button
-                    onClick={() => removeProject(index)}
-                    className="text-rose-500 hover:text-rose-700 p-1"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <input
-                  type="text"
-                  value={p.technologies}
-                  onChange={(e) => {
-                    const updated = [...profile.projects];
-                    updated[index].technologies = e.target.value;
-                    setProfile({ ...profile, projects: updated });
-                  }}
-                  placeholder="Technologies used (e.g. Python, PyTorch, FastAPI, Next.js)"
-                  className="w-full px-3 py-1.5 rounded-xl border text-xs bg-white dark:bg-slate-800"
-                />
-
-                <textarea
-                  rows={2}
-                  value={p.description}
-                  onChange={(e) => {
-                    const updated = [...profile.projects];
-                    updated[index].description = e.target.value;
-                    setProfile({ ...profile, projects: updated });
-                  }}
-                  placeholder="Project architecture and results achieved..."
-                  className="w-full px-3 py-1.5 rounded-xl border text-xs bg-white dark:bg-slate-800"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Tab 6: Certifications & Honors */}
-      {activeTab === "certifications" && (
-        <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              Certifications & Badges
-            </h3>
-            <button
-              onClick={addCertification}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600 text-xs font-bold hover:bg-blue-100 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Certification
-            </button>
-          </div>
-
+        <div className="space-y-3 pt-2 border-t border-border">
+          <p className="text-xs font-medium text-muted-foreground">Add Experience</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {profile.certifications?.map((c: any, index: number) => (
-              <div
-                key={index}
-                className="p-3 rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between gap-3"
-              >
-                <div className="space-y-1 flex-1">
-                  <input
-                    type="text"
-                    value={c.name}
-                    onChange={(e) => {
-                      const updated = [...profile.certifications];
-                      updated[index].name = e.target.value;
-                      setProfile({ ...profile, certifications: updated });
-                    }}
-                    placeholder="Certification Name"
-                    className="w-full px-2.5 py-1 rounded-lg border text-xs font-bold bg-white dark:bg-slate-800"
-                  />
-                  <input
-                    type="text"
-                    value={c.issuer}
-                    onChange={(e) => {
-                      const updated = [...profile.certifications];
-                      updated[index].issuer = e.target.value;
-                      setProfile({ ...profile, certifications: updated });
-                    }}
-                    placeholder="Issuer (e.g. DeepLearning.AI, AWS)"
-                    className="w-full px-2.5 py-1 rounded-lg border text-xs bg-white dark:bg-slate-800"
-                  />
+            <Input value={newExpCompany} onChange={(e) => setNewExpCompany(e.target.value)} placeholder="Company" className="rounded-md text-sm" />
+            <Input value={newExpTitle} onChange={(e) => setNewExpTitle(e.target.value)} placeholder="Title" className="rounded-md text-sm" />
+          </div>
+          <Textarea value={newExpDesc} onChange={(e) => setNewExpDesc(e.target.value)} placeholder="Description (optional)" className="rounded-md text-sm" rows={2} />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleAddExperience}
+            disabled={!newExpCompany || !newExpTitle}
+            className="text-xs rounded-md"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" /> Add
+          </Button>
+        </div>
+      </div>
+
+      {/* ─── Projects ─── */}
+      <div className="editorial-card p-6 space-y-4">
+        <div className="flex items-center gap-2 text-foreground">
+          <Code className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-display font-semibold">Projects / Portfolio Work</h2>
+        </div>
+        <Separator />
+
+        {projects.map((proj) => (
+          <div key={proj.$id} className="flex items-start justify-between p-3 rounded-md bg-muted">
+            <div className="flex gap-4 w-full">
+              {proj.thumbnailFileId && (
+                <div className="w-16 h-16 relative rounded-md border overflow-hidden shrink-0">
+                  <Image src={getFilePreviewUrl(proj.thumbnailFileId)} alt="thumb" fill style={{ objectFit: "cover" }} />
                 </div>
+              )}
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  {proj.title}
+                  {proj.projectUrl && <a href={proj.projectUrl} target="_blank" rel="noreferrer"><ExternalLink className="w-3 h-3 text-muted-foreground hover:text-primary" /></a>}
+                </p>
+                {proj.description && <p className="text-xs text-muted-foreground mt-0.5">{proj.description}</p>}
+                {proj.techUsed && proj.techUsed.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {proj.techUsed.map((t) => (
+                      <span key={t} className="tag tag-outline text-[10px]">{t}</span>
+                    ))}
+                  </div>
+                )}
+                {proj.imageFileIds && proj.imageFileIds.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1"><ImageIcon className="w-3 h-3" /> {proj.imageFileIds.length} images</p>
+                )}
+              </div>
+            </div>
+            <button onClick={() => handleDeleteProject(proj.$id)} className="text-muted-foreground hover:text-destructive transition-colors shrink-0 ml-2">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+
+        <div className="space-y-3 pt-2 border-t border-border">
+          <p className="text-xs font-medium text-muted-foreground">Add Project / Work Sample</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input value={newProjTitle} onChange={(e) => setNewProjTitle(e.target.value)} placeholder="Project title" className="rounded-md text-sm" />
+            <Input value={newProjUrl} onChange={(e) => setNewProjUrl(e.target.value)} placeholder="Live URL (Optional)" className="rounded-md text-sm" />
+          </div>
+          <Textarea value={newProjDesc} onChange={(e) => setNewProjDesc(e.target.value)} placeholder="Description" className="rounded-md text-sm" rows={2} />
+          <Input value={newProjTech} onChange={(e) => setNewProjTech(e.target.value)} placeholder="Tools/Technologies (comma-separated)" className="rounded-md text-sm" />
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2 p-3 bg-muted/50 rounded-md border border-border/50">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Project Thumbnail</Label>
+              <Input type="file" accept="image/*" onChange={(e) => setNewProjThumbnail(e.target.files?.[0] || null)} className="text-xs h-8" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Additional Images</Label>
+              <Input type="file" accept="image/*" multiple onChange={(e) => setNewProjImages(Array.from(e.target.files || []))} className="text-xs h-8" />
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleAddProject}
+            disabled={!newProjTitle}
+            className="text-xs rounded-md mt-2"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" /> Add Project
+          </Button>
+        </div>
+      </div>
+
+      {/* ─── Links ─── */}
+      <div className="editorial-card p-6 space-y-4">
+        <div className="flex items-center gap-2 text-foreground">
+          <LinkIcon className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-display font-semibold">Links</h2>
+        </div>
+        <Separator />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Portfolio URL</Label>
+            <Input value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://yoursite.com" className="rounded-md" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">LinkedIn URL</Label>
+            <Input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/in/you" className="rounded-md" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">GitHub URL (Optional)</Label>
+            <Input value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/you" className="rounded-md" />
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Preferences ─── */}
+      <div className="editorial-card p-6 space-y-4">
+        <div className="flex items-center gap-2 text-foreground">
+          <Briefcase className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-display font-semibold">Preferences</h2>
+        </div>
+        <Separator />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Desired Role Type</Label>
+            <Input value={desiredRoleType} onChange={(e) => setDesiredRoleType(e.target.value)} placeholder="Marketing Manager, Engineer..." className="rounded-md" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Preferred Industry</Label>
+            <Input value={preferredIndustry} onChange={(e) => setPreferredIndustry(e.target.value)} placeholder="Tech, Finance, Healthcare..." className="rounded-md" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Location Preference</Label>
+            <Input 
+              list="cities"
+              value={locationPreference} 
+              onChange={(e) => setLocationPreference(e.target.value)} 
+              placeholder="San Francisco, Remote" 
+              className="rounded-md" 
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Work Mode</Label>
+            <div className="flex gap-2">
+              {["remote", "hybrid", "onsite", "any"].map((mode) => (
                 <button
-                  onClick={() => removeCertification(index)}
-                  className="text-rose-500 hover:text-rose-700 p-1.5"
+                  key={mode}
+                  type="button"
+                  onClick={() => setWorkMode(mode)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                    workMode === mode
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                  }`}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  {mode}
                 </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Tab 7: Community & Languages */}
-      {activeTab === "community" && (
-        <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border space-y-6">
-          <h3 className="text-base font-bold text-slate-900 dark:text-white">
-            Community, Volunteer Work & Languages
-          </h3>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Volunteer & Community Activities
-              </label>
-              <textarea
-                rows={3}
-                value={
-                  profile.communityWork?.[0]?.description ||
-                  "Lead AI Workshop Instructor for GDSC, mentoring 100+ undergraduates."
-                }
-                onChange={(e) => {
-                  const updated = [...(profile.communityWork || [])];
-                  if (updated.length === 0) {
-                    updated.push({
-                      title: "Lead Instructor",
-                      organization: "GDSC",
-                      description: e.target.value,
-                    });
-                  } else {
-                    updated[0].description = e.target.value;
-                  }
-                  setProfile({ ...profile, communityWork: updated });
-                }}
-                className="w-full px-3.5 py-2 rounded-xl border text-xs bg-slate-50 dark:bg-slate-800"
-              />
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border flex items-center justify-between">
-              <div className="space-y-0.5">
-                <p className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-blue-600" /> Privacy & Recruiter Visibility
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  Allow verified recruiters to discover your profile and match with opportunities.
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={profile.allowRecruiterView !== false}
-                onChange={(e) =>
-                  setProfile({ ...profile, allowRecruiterView: e.target.checked })
-                }
-                className="w-4 h-4 rounded text-blue-600"
-              />
+              ))}
             </div>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Save button (bottom) */}
+      <div className="flex justify-end gap-2 pb-8">
+        <Button
+          onClick={() => setIsEditing(false)}
+          variant="outline"
+          className="font-semibold text-sm rounded-md"
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="bg-primary text-primary-foreground hover:bg-[var(--color-primary-hover)] font-semibold text-sm rounded-md"
+        >
+          <Save className="w-4 h-4 mr-1.5" />
+          {saving ? "Saving..." : "Save Profile"}
+        </Button>
+      </div>
     </div>
   );
 }
